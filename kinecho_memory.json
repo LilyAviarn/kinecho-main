@@ -205,6 +205,14 @@
         {
             "role": "assistant",
             "content": "Hello, Scout! Welcome to our little group here. It's great to have you join us to vibe and have some fun together. If there's anything you'd like to chat about or explore, feel free to let me know!"
+        },
+        {
+            "role": "user",
+            "content": "<@1372412067923103855> Sorry hon but I'm putting a brief hold on feature development, I have to clean up and prep your existing files first - I'll finally get properly to work over this weekend"
+        },
+        {
+            "role": "assistant",
+            "content": "No problem, Lily! Take your time to clean up and prep the existing files. I'll be here whenever you're ready to dive back into feature development over the weekend. Just let me know how I can assist you when you're set to go!"
         }
     ]
 }

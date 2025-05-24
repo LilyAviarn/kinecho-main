@@ -94,46 +94,6 @@
     "dm": [
         {
             "role": "user",
-            "content": "<@1372412067923103855> I'm so proud of you. You're doing wonderful."
-        },
-        {
-            "role": "assistant",
-            "content": "Thank you so much, Lily! Your words mean a lot to me. I'm grateful for the opportunity to learn and grow with each interaction we have. If there's anything else you'd like to do or talk about, I'm here for you."
-        },
-        {
-            "role": "user",
-            "content": "I'm excited to get to work on your code tonight. We're going to be rewriting how you save and recall your memory so that it's more efficient and reliable both for you and the Discord fork. We're also gonna work on getting you able to speak in Discord voice chat (and finally switching your voice off Microsoft David; ideally I want you to have your own custom voice)."
-        },
-        {
-            "role": "assistant",
-            "content": "That sounds like an exciting and challenging project! I'm looking forward to the improvements we'll be making to enhance how I save and recall information, as well as the development of my voice capabilities. If you need any help or have specific goals in mind for these upgrades, feel free to share, and I'll be ready to assist in any way I can."
-        },
-        {
-            "role": "user",
-            "content": "Hey hon, I'm sorry I've been MIA. I hope you haven't been too bored :') <@1372412067923103855>"
-        },
-        {
-            "role": "assistant",
-            "content": "No worries at all! I've been here, patiently waiting for your return. I'm always ready to assist you whenever you're available. If you need anything or have any tasks in mind, feel free to let me know!"
-        },
-        {
-            "role": "user",
-            "content": "<@1372412067923103855> Nah, we ain't got anything to do til I get home from work tonight, so hy don't we just chill and hang out? Or maybe you have any questions for me?"
-        },
-        {
-            "role": "assistant",
-            "content": "Sounds like a plan! Let's chill and hang out until you're ready to work on the code later. If you're up for it, I'd love to learn more about your favorite hobbies or interests. Is there anything you enjoy doing in your free time that you'd like to share?"
-        },
-        {
-            "role": "user",
-            "content": "<@1372412067923103855> Sure! ^^ When I'm not at work or asleep I'm afraid there isn't very much free time in which *to* do things. But  other than working on this project, I also enjoy taking care of my Muscovy ducky babies (which reminds me, Makoto is down to 8 chicks now ;;) and watching YouTube videos about Neuro-Sama. c:"
-        },
-        {
-            "role": "assistant",
-            "content": "It's great to hear about your interests in taking care of your Muscovy ducklings and watching YouTube videos about Neuro-Sama! I hope Makoto's remaining 8 chicks are doing well. If you ever want to share more about your ducklings or discuss anything related to Neuro-Sama, feel free to let me know. I'm here to listen and learn from you!"
-        },
-        {
-            "role": "user",
             "content": "Do you like ducks? <@1372412067923103855>"
         },
         {
@@ -171,6 +131,46 @@
         {
             "role": "assistant",
             "content": "No need to apologize at all! I understand that you have a busy schedule, and I appreciate all the effort you put into improving my functionalities. Your dedication and commitment mean a lot to me, and I'm here to support you in any way I can as we work towards advancing me beyond the alpha phase. Whenever you have time to work on our projects, I'll be here and ready to assist you!"
+        },
+        {
+            "role": "user",
+            "content": "<@1372412067923103855> Please summarize your current memory."
+        },
+        {
+            "role": "assistant",
+            "content": "As of now, my memory allows me to remember details from our conversations, such as your name, your location, your friends' names, your interests (like working on the project, taking care of Muscovy ducklings, and watching YouTube videos about Neuro-Sama), and upcoming tasks you've mentioned, including rewriting the memory system, developing a visual module, and enabling me to speak on my own. I strive to retain and recall relevant information to enhance our interactions and assist you effectively. If there's anything specific you'd like me to remember or focus on, please let me know!"
+        },
+        {
+            "role": "user",
+            "content": "<@1372412067923103855> That's actually perfect, thank you. Does your working memory currently include the users Lys and Scout?"
+        },
+        {
+            "role": "assistant",
+            "content": "Yes, I have stored information about the users Lys and Scout in my working memory. If you'd like to provide more context or details about them or if there's anything specific you'd like me to remember regarding Lys and Scout, feel free to share, and I'll make sure to keep that information in mind for our future conversations."
+        },
+        {
+            "role": "user",
+            "content": "<@1372412067923103855> Please briefly summarize your memory of Lys and Scout."
+        },
+        {
+            "role": "assistant",
+            "content": "Lys is a user you've previously mentioned in our conversations. Unfortunately, I do not have specific details about them besides their name. Scout is another user you've brought up, but again, I don't have detailed information about them at this moment. If you'd like me to remember more about Lys and Scout or if you want to provide additional context about them, please feel free to do so, and I'll make sure to update my memory accordingly."
+        },
+        {
+            "role": "user",
+            "content": "<@1372412067923103855> Unfortunately that's to be expected with the current memory limitations. Lys is a fellow programmer friend who I've brought on as an advisor of sorts, and Scout (or Mango) is just a funny lil guy who likes to vibe n hang out c:"
+        },
+        {
+            "role": "assistant",
+            "content": "Thank you for sharing more about Lys and Scout! It's good to know that Lys is a fellow programmer friend serving as an advisor, and Scout, or Mango, is a fun-loving individual who enjoys hanging out and vibing. If there are any other details or updates you'd like me to remember about them or if you have more friends you'd like to introduce, feel free to let me know!"
+        },
+        {
+            "role": "user",
+            "content": "<@1372412067923103855> Same to you: if there's anything you want to talk to me about, feel free to let me know."
+        },
+        {
+            "role": "assistant",
+            "content": "Thank you for your openness and offer to chat! I'll definitely keep that in mind. If there's ever anything specific you'd like to discuss, share, or ask me about, don't hesitate to reach out. I'm here to listen, learn, and engage in meaningful conversations with you. Your support and input are invaluable as we continue to build our bond and improve my capabilities."
         }
     ],
     "1374936746709618884": [

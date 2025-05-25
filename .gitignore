@@ -1,4 +1,41 @@
+# Environment variables
 .env
-__pycache__
-kinecho_memory.json
 .direnv
+venv/
+.venv/
+env/
+
+# Python compiled files, packaging and build artifacts
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+
+# IDE specific files
+.idea/             # PyCharm
+.vscode/           # VS Code
+*.swp              # Vim swap files
+*~                 # Backup files
+
+# OS generated files
+.DS_Store          # macOS [None of us currently use MacOS but Good Practice]
+Thumbs.db          # Windows
+
+# Log and temporary files
+*.log
+*.tmp
+*.temp
+
+# Database files
+*.sqlite3
+db.sqlite3
+*.db
+
+# Test/coverage artifacts
+.pytest_cache/
+htmlcov/
+.mypy_cache/
+
+# Project-specific files
+kinecho_memory.json

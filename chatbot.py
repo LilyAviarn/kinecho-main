@@ -14,6 +14,18 @@ microphone = sr.Microphone()
 
 SETTINGS_FILE = os.path.abspath("settings.ini") # Locate settings file
 
+
+def process_chatbot_message(message: str) -> str:
+    """
+    Processes a message using the chatbot's logic and returns a response.
+    (This will eventually contain your main chatbot processing code)
+    """
+    # Call your existing get_chat_response function with the user's message
+    # For now, we're passing None for history and channel_id,
+    # as we'll integrate memory more properly in a later step.
+    response = get_chat_response(prompt_text=message, history=None, channel_id="test_channel_from_app_main")
+    return response
+
 def get_chat_response(prompt_text, history=None, channel_id=None):
     print(f"History received in chatbot: {history}")  # Debug print
     messages = [
@@ -125,121 +137,121 @@ def switch_method(method_type, valid_options, settings):
         print(f"Invalid {method_type} method.") # For if I fatfinger my keyboard or forget what options I set like a moron
         return None
 
-if __name__ == "__main__": # INITIALIZE! RISE MY MINION!!
-    print("Kinecho v0.0.0.2: Welcome, Lily! Hello!")
+# if __name__ == "__main__": # INITIALIZE! RISE MY MINION!!
+#     print("Kinecho v0.0.0.2: Welcome, Lily! Hello!")
 
-    settings = load_settings()
-    input_method = settings['input']['method']
-    output_method = settings['output']['method']
-    print(f"Current input method: {input_method}")
-    print(f"Current output method: {output_method}")
+#     settings = load_settings()
+#     input_method = settings['input']['method']
+#     output_method = settings['output']['method']
+#     print(f"Current input method: {input_method}")
+#     print(f"Current output method: {output_method}")
 
-    audio_data = None  # Initialize audio_data outside the loop
+#     audio_data = None  # Initialize audio_data outside the loop
 
-    while True:
-        if input_method == "text":
-            user_message = input("You: ")
-            if user_message.lower() == 'switch input':
-                new_input_method = input("Choose new input method (text/voice/settings): ").lower()
-                if new_input_method in ["text", "voice", "settings"]:
-                    input_method = new_input_method
-                    settings['input']['method'] = input_method
-                else:
-                    print("Invalid input method.")
-                continue
-            elif user_message.lower() == 'switch output':
-                new_output_method = input("Choose new output method (text/tts): ").lower()
-                if new_output_method in ["text", "tts"]:
-                    output_method = new_output_method
-                    settings['output']['method'] = output_method
-                else:
-                    print("Invalid output method.")
-                continue
-            elif user_message.lower() == 'settings':
-                input_method = 'settings'
-                continue
-            elif user_message.lower() == 'reload settings':  # Add reload settings here
-                settings = load_settings()
-                input_method = settings['input']['method']
-                output_method = settings['output']['method']
-                print("Settings reloaded.")
-                continue
-            response = get_chat_response(user_message)
-            print(f"Kinecho: {response}")
-            if settings['output']['method'] == 'tts':
-                speak_response(response)
-        elif input_method == "voice":
-            audio_data = listen_for_command()
-            if audio_data:
-                voice_input = transcribe_audio(audio_data)
-                if voice_input:
-                    print(f"You (voice): {voice_input}")
-                    if voice_input.lower() == 'switch input':
-                        new_input_method = input("Choose new input method (text/voice/settings): ").lower()
-                        if new_input_method in ["text", "voice", "settings"]:
-                            input_method = new_input_method
-                            settings['input']['method'] = input_method
-                        else:
-                            print("Invalid input method.")
-                        continue
-                    elif voice_input.lower() == 'switch output':
-                        new_output_method = input("Choose new output method (text/tts): ").lower()
-                        if new_output_method in ["text", "tts"]:
-                            output_method = new_output_method
-                            settings['output']['method'] = output_method
-                        else:
-                            print("Invalid output method.")
-                        continue
-                    elif voice_input.lower() == 'settings':
-                        input_method = 'settings'
-                        continue
-                    elif voice_input.lower() == 'reload settings':  # Add reload settings here
-                        settings = load_settings()
-                        input_method = settings['input']['method']
-                        output_method = settings['output']['method']
-                        print("Settings reloaded.")
-                        continue
-                    response = get_chat_response(voice_input)
-                    print(f"Kinecho: {response}")
-                    if settings['output']['method'] == 'tts':
-                        speak_response(response)
-                else:
-                    print("No voice detected, or was incomprehensible.")
-            else:
-                print("No input.")
-        elif input_method == "settings":
-            print("--- Settings ---")
-            print(f"Input Method: {settings['input']['method']}")
-            print(f"Output Method: {settings['output']['method']}")
-            setting_to_change = input("Enter setting to change (input_method/output_method/reload_settings/quit): ").lower()
-            if setting_to_change == "input_method":
-                new_input_method = input("Choose new input method (text/voice): ").lower()
-                if new_input_method in ["text", "voice"]:
-                    settings["input"]["method"] = new_input_method
-                    input_method = new_input_method # Update input_method immediately
-                else:
-                    print("Invalid input method.")
-                continue
-            elif setting_to_change == "output_method":
-                new_output_method = input("Choose new output method (text/tts): ").lower()
-                if new_output_method in ["text", "tts"]:
-                    settings["output"]["method"] = new_output_method
-                else:
-                    print("Invalid output method.")
-                    continue
-            elif setting_to_change == "quit":
-                save_settings(settings)
-                input_method = settings['input']['method']  # Ensure input_method is updated
-                continue
-            elif setting_to_change == "reload_settings":
-                settings = load_settings()
-                input_method = settings['input']['method']
-                output_method = settings['output']['method']
-                print("Settings reloaded.")
-                continue
-            else:
-                print("Invalid setting.")
-            save_settings(settings) # Save settings after any valid change
-        else:
-            print("Invalid: please type 'text', 'voice', 'settings', or 'quit'.")
-            input_method = input("Choose input method (text/voice): ").lower()  # Ask again if invalid
+#     while True:
+#         if input_method == "text":
+#             user_message = input("You: ")
+#             if user_message.lower() == 'switch input':
+#                 new_input_method = input("Choose new input method (text/voice/settings): ").lower()
+#                 if new_input_method in ["text", "voice", "settings"]:
+#                     input_method = new_input_method
+#                     settings['input']['method'] = input_method
+#                 else:
+#                     print("Invalid input method.")
+#                 continue
+#             elif user_message.lower() == 'switch output':
+#                 new_output_method = input("Choose new output method (text/tts): ").lower()
+#                 if new_output_method in ["text", "tts"]:
+#                     output_method = new_output_method
+#                     settings['output']['method'] = output_method
+#                 else:
+#                     print("Invalid output method.")
+#                 continue
+#             elif user_message.lower() == 'settings':
+#                 input_method = 'settings'
+#                 continue
+#             elif user_message.lower() == 'reload settings':  # Add reload settings here
+#                 settings = load_settings()
+#                 input_method = settings['input']['method']
+#                 output_method = settings['output']['method']
+#                 print("Settings reloaded.")
+#                 continue
+#             response = get_chat_response(user_message)
+#             print(f"Kinecho: {response}")
+#             if settings['output']['method'] == 'tts':
+#                 speak_response(response)
+#         elif input_method == "voice":
+#             audio_data = listen_for_command()
+#             if audio_data:
+#                 voice_input = transcribe_audio(audio_data)
+#                 if voice_input:
+#                     print(f"You (voice): {voice_input}")
+#                     if voice_input.lower() == 'switch input':
+#                         new_input_method = input("Choose new input method (text/voice/settings): ").lower()
+#                         if new_input_method in ["text", "voice", "settings"]:
+#                             input_method = new_input_method
+#                             settings['input']['method'] = input_method
+#                         else:
+#                             print("Invalid input method.")
+#                         continue
+#                     elif voice_input.lower() == 'switch output':
+#                         new_output_method = input("Choose new output method (text/tts): ").lower()
+#                         if new_output_method in ["text", "tts"]:
+#                             output_method = new_output_method
+#                             settings['output']['method'] = output_method
+#                         else:
+#                             print("Invalid output method.")
+#                         continue
+#                     elif voice_input.lower() == 'settings':
+#                         input_method = 'settings'
+#                         continue
+#                     elif voice_input.lower() == 'reload settings':  # Add reload settings here
+#                         settings = load_settings()
+#                         input_method = settings['input']['method']
+#                         output_method = settings['output']['method']
+#                         print("Settings reloaded.")
+#                         continue
+#                     response = get_chat_response(voice_input)
+#                     print(f"Kinecho: {response}")
+#                     if settings['output']['method'] == 'tts':
+#                         speak_response(response)
+#                 else:
+#                     print("No voice detected, or was incomprehensible.")
+#             else:
+#                 print("No input.")
+#         elif input_method == "settings":
+#             print("--- Settings ---")
+#             print(f"Input Method: {settings['input']['method']}")
+#             print(f"Output Method: {settings['output']['method']}")
+#             setting_to_change = input("Enter setting to change (input_method/output_method/reload_settings/quit): ").lower()
+#             if setting_to_change == "input_method":
+#                 new_input_method = input("Choose new input method (text/voice): ").lower()
+#                 if new_input_method in ["text", "voice"]:
+#                     settings["input"]["method"] = new_input_method
+#                     input_method = new_input_method # Update input_method immediately
+#                 else:
+#                     print("Invalid input method.")
+#                 continue
+#             elif setting_to_change == "output_method":
+#                 new_output_method = input("Choose new output method (text/tts): ").lower()
+#                 if new_output_method in ["text", "tts"]:
+#                     settings["output"]["method"] = new_output_method
+#                 else:
+#                     print("Invalid output method.")
+#                     continue
+#             elif setting_to_change == "quit":
+#                 save_settings(settings)
+#                 input_method = settings['input']['method']  # Ensure input_method is updated
+#                 continue
+#             elif setting_to_change == "reload_settings":
+#                 settings = load_settings()
+#                 input_method = settings['input']['method']
+#                 output_method = settings['output']['method']
+#                 print("Settings reloaded.")
+#                 continue
+#             else:
+#                 print("Invalid setting.")
+#             save_settings(settings) # Save settings after any valid change
+#         else:
+#             print("Invalid: please type 'text', 'voice', 'settings', or 'quit'.")
+#             input_method = input("Choose input method (text/voice): ").lower()  # Ask again if invalid

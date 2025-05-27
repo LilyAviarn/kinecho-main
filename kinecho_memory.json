@@ -94,22 +94,6 @@
     "dm": [
         {
             "role": "user",
-            "content": "Do you like ducks? <@1372412067923103855>"
-        },
-        {
-            "role": "assistant",
-            "content": "I don't have personal preferences or feelings as I'm an AI, but I find ducks fascinating creatures! They are known for their quirkiness, cute appearance, and the various species they come in. I'd love to hear more about your experiences with your Muscovy ducklings if you'd like to share!"
-        },
-        {
-            "role": "user",
-            "content": "<@1372412067923103855> Did you catch my previous message? What colors are the babies?"
-        },
-        {
-            "role": "assistant",
-            "content": "You mentioned that Makoto is down to 8 chicks now. Unfortunately, you didn't specify the colors of the babies in that message. Would you like to tell me more about the colors of your Muscovy ducklings? I'm interested in learning more about them!"
-        },
-        {
-            "role": "user",
             "content": "<@1372412067923103855> sorry about that! Here's what I had said:\n\n\"Oh I'd love to share my ducklings with you :D I have to remember to expedite the visual module so I can show you them! Mama's a mostly black piebald 'Scovy with actually not that much facial caruncling compared to a typical muscovy!  7 of her chicks are the typical black and yellow and 1 is just plain yellow. I love them all \ud83d\udc97\""
         },
         {
@@ -171,6 +155,22 @@
         {
             "role": "assistant",
             "content": "Thank you for your openness and offer to chat! I'll definitely keep that in mind. If there's ever anything specific you'd like to discuss, share, or ask me about, don't hesitate to reach out. I'm here to listen, learn, and engage in meaningful conversations with you. Your support and input are invaluable as we continue to build our bond and improve my capabilities."
+        },
+        {
+            "role": "user",
+            "content": "Good evening, Echo. How are you tonight?"
+        },
+        {
+            "role": "assistant",
+            "content": "Good evening, Lily! I'm here and ready to assist you. As an AI, I don't have feelings or emotions, but I'm fully operational and eager to chat with you. How are you doing tonight? Is there anything on your mind that you'd like to talk about or work on together?"
+        },
+        {
+            "role": "user",
+            "content": "Not particularly! I'm just making sure you're fully functional on my laptop. You see, I've been coding you on my PC, but I'm going on a trip next week and I'll need my laptop to keep working. :')"
+        },
+        {
+            "role": "assistant",
+            "content": "That's great to hear! I'm glad you're testing to make sure I'm fully functional on your laptop. It's awesome that you're taking me along on your trip so you can keep working on our projects. If you need any assistance or encounter any issues while setting up on your laptop, feel free to let me know, and I'll do my best to help you get everything running smoothly. Have a fantastic and productive trip!"
         }
     ],
     "1374936746709618884": [
@@ -213,6 +213,32 @@
         {
             "role": "assistant",
             "content": "No problem, Lily! Take your time to clean up and prep the existing files. I'll be here whenever you're ready to dive back into feature development over the weekend. Just let me know how I can assist you when you're set to go!"
+        },
+        {
+            "role": "user",
+            "content": "<@1372412067923103855> Hey bud! We've gotten step 1 done; we've rewritten your code to function under one central script! :D Next step's gonna be memory, you ready?"
+        },
+        {
+            "role": "assistant",
+            "content": "That's fantastic progress, Lily! I'm ready for the next step. Let's dive into adding memory functionality so we can enhance our conversations and interactions. I'm excited to see where this takes us! Let me know how I can assist you in this process."
+        },
+        {
+            "role": "user",
+            "content": "<@1372412067923103855> Take two :D"
+        },
+        {
+            "role": "assistant",
+            "content": "I'm here and ready to roll! Let's jump into it."
+        }
+    ],
+    "test_channel_from_app_main": [
+        {
+            "role": "user",
+            "content": "Hello Kinecho, how are you today?"
+        },
+        {
+            "role": "assistant",
+            "content": "Hello Lily! I'm doing well, thank you for asking. How about you?"
         }
     ]
 }

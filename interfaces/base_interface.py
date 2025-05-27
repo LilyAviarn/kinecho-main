@@ -18,7 +18,7 @@ class KinechoInterface(ABC):
         self.is_running = False
 
     @abstractmethod
-    def start(self):
+    async def initialize_interface(self): # Change from "Start" to "initialize_interface"
         """
         Starts the interface and begins listening for input.
         This method should contain the main loop or connection logic for the interface.

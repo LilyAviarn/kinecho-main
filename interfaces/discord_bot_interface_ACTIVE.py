@@ -63,6 +63,7 @@ class DiscordInterface(KinechoInterface, discord.Client):
         """
         Sends a message to a specific Discord channel.
         Args:
+<<<<<<< HEAD
             channel_id: The ID of the Discord channel.
             message_content: The content of the message to send.
         """
@@ -170,11 +171,82 @@ class DiscordInterface(KinechoInterface, discord.Client):
             memory = memory_manager.load_memory()
             older_history = memory_manager.get_channel_memory(memory, channel_id)
 
+=======
+            channel_id (int): The ID of the channel to send the message to.
+            message_content (str): The content of the message.
+        """
+        try:
+            channel = self.get_channel(channel_id)
+            if channel:
+                if isinstance(channel, discord.TextChannel) or isinstance(channel, discord.DMChannel):
+                    await channel.send(message_content)
+                else:
+                    print(f"Discord Interface Warning: Channel {channel_id} is not a text or DM channel. Cannot send message.")
+            else:
+                print(f"Discord Interface Warning: Channel with ID {channel_id} not found.")
+        except Exception as e:
+            print(f"Discord Interface Error sending message to channel {channel_id}: {e}")
+
+    async def receive_message(self, message: Any):
+        """
+        Processes an incoming message from Discord.
+        This method is an event handler for on_message.
+        Args:
+            message (discord.Message): The raw message object from Discord.
+        """
+        # Ignore messages from the bot itself to prevent infinite loops
+        if message.author == self.user:
+            return
+
+        # Check if the message is a DM or if the bot is mentioned
+        if isinstance(message.channel, discord.DMChannel) or self.user.mentioned_in(message):
+            query = message.content
+            channel = message.channel
+            channel_id = channel.id
+
+            # Remove bot mention from query if it exists
+            if self.user.mentioned_in(message):
+                query = re.sub(r'<@!?%s>' % self.user.id, '', query).strip()
+
+            print(f"Discord Interface: Received message from {message.author} in {channel.name if not isinstance(channel, discord.DMChannel) else 'DM'}: {query}")
+
+            # Fetch recent message history from Discord API
+            history = []
+            try:
+                # Fetch messages before the current one, up to a limit (e.g., 20 messages for context)
+                # Ensure we only fetch messages from the user or the bot
+                after_message_id = LAST_RESPONSE_MESSAGE_ID.get(channel.id)
+                async for msg in channel.history(limit=20, before=message):
+                    if msg.author == self.user:
+                        history.append({"role": "assistant", "content": msg.content})
+                    elif msg.author == message.author: # The user who sent the current message
+                        history.append({"role": "user", "content": msg.content})
+                    # Stop fetching if we hit a previously responded message
+                    if after_message_id and msg.id == after_message_id:
+                        break
+
+                history.reverse() # History needs to be oldest first
+
+            except discord.Forbidden:
+                print(f"Discord Interface Error: Bot does not have permissions to read message history in {channel.name}.")
+                history = [] # Reset history on error
+            except discord.HTTPException as e:
+                print(f"Discord Interface Error fetching history from Discord: {e}")
+                history = [] # Reset history on error
+
+
+            # Load persistent memory for this channel
+            memory = memory_manager.load_memory()
+            older_history = memory_manager.get_channel_memory(memory, channel_id)
+
+            # Combine older history with current session's fetched messages (excluding the current query as it's separate)
+>>>>>>> 3c937be6f07917dbdc91eb2a48c1234ee3bafca6
             combined_history = older_history + history
 
 
             # --- Get response from Chatbot Processor ---
-            response = self.chatbot_processor(query, combined_history, channel_id)
+            # Pass the combined history and channel_id to the chatbot_processor
+            response = self.chatbot_processor(query, combined_history, channel_id) # chatbot.get_chat_response
 
             # Prepend a mention to the original message author
             response_with_mention = f"<@{message.author.id}> {response}"
@@ -203,4 +275,11 @@ class DiscordInterface(KinechoInterface, discord.Client):
         Called when the bot successfully connects to Discord.
         """
         print(f'Logged in as {self.user} (ID: {self.user.id})')
-        print('------ Discord Bot Ready ------')
+        print('------')
+
+    async def on_resumed(self):
+        """
+        Overrides discord.Client.on_resumed.
+        Called when the bot successfully resumes a session.
+        """
+        print('Bot session resumed.')

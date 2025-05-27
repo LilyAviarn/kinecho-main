@@ -63,74 +63,113 @@ class DiscordInterface(KinechoInterface, discord.Client):
         """
         Sends a message to a specific Discord channel.
         Args:
-            channel_id (int): The ID of the channel to send the message to.
-            message_content (str): The content of the message.
+            channel_id: The ID of the Discord channel.
+            message_content: The content of the message to send.
         """
         try:
             channel = self.get_channel(channel_id)
-            if channel:
-                if isinstance(channel, discord.TextChannel) or isinstance(channel, discord.DMChannel):
-                    await channel.send(message_content)
-                else:
-                    print(f"Discord Interface Warning: Channel {channel_id} is not a text or DM channel. Cannot send message.")
+            if isinstance(channel, discord.TextChannel) or isinstance(channel, discord.DMChannel):
+                sent_message = await channel.send(message_content)
+                LAST_RESPONSE_MESSAGE_ID[channel_id] = sent_message.id
             else:
-                print(f"Discord Interface Warning: Channel with ID {channel_id} not found.")
+                print(f"Discord Interface Error: Channel with ID {channel_id} not found or not a text/DM channel.")
+        except discord.HTTPException as e:
+            print(f"Discord Interface Error sending message to {channel_id}: {e}")
         except Exception as e:
-            print(f"Discord Interface Error sending message to channel {channel_id}: {e}")
+            print(f"Discord Interface Unexpected error sending message: {e}")
 
-    async def receive_message(self, message: Any):
+    # 3. Implement the abstract receive_message method from KinechoInterface
+    #    This method now explicitly serves as the Discord 'on_message' event handler.
+    async def receive_message(self, message: discord.Message):
         """
-        Processes an incoming message from Discord.
-        This method is an event handler for on_message.
-        Args:
-            message (discord.Message): The raw message object from Discord.
+        Processes an incoming message from the Discord interface.
+        This method is the Discord.py 'on_message' event handler adapted for KinechoInterface.
         """
-        # Ignore messages from the bot itself to prevent infinite loops
+        # Ignore messages from self to prevent infinite loops
         if message.author == self.user:
+            # Update LAST_RESPONSE_MESSAGE_ID only if it's the bot's own message
+            LAST_RESPONSE_MESSAGE_ID[message.channel.id] = message.id
             return
 
-        # Check if the message is a DM or if the bot is mentioned
-        if isinstance(message.channel, discord.DMChannel) or self.user.mentioned_in(message):
-            query = message.content
-            channel = message.channel
-            channel_id = channel.id
+        channel = message.channel
+        channel_id = str(channel.id) # Convert to string for consistency with memory_manager keys
 
-            # Remove bot mention from query if it exists
+        print(f"Received message from {message.author} in {channel.name if not isinstance(channel, discord.DMChannel) else 'DM'}: {message.content}")
+
+        # --- Handle Discord-specific commands ---
+        if message.content.startswith('!join'):
+            if message.author.voice and message.author.voice.channel:
+                voice_channel = message.author.voice.channel
+                try:
+                    await voice_channel.connect()
+                    await self.send_message(channel.id, f"I joined {voice_channel.name}!")
+                except discord.ClientException:
+                    await self.send_message(channel.id, "I'm already in a voice channel or a connection error occurred.")
+                except discord.InvalidArgument:
+                    await self.send_message(channel.id, "I couldn't find that voice channel.")
+                except Exception as e:
+                    await self.send_message(channel.id, f"An error occurred while joining voice channel: {e}")
+            else:
+                await self.send_message(channel.id, "You need to be in a voice channel first!")
+            return
+
+        if message.content.startswith('!leave'):
+            voice_client = message.guild.voice_client if message.guild else None
+            if voice_client and voice_client.is_connected():
+                await voice_client.disconnect()
+                await self.send_message(channel.id, "I left the voice channel.")
+            else:
+                await self.send_message(channel.id, "I'm not currently connected to a voice channel here!")
+            return
+
+        if message.content.startswith('!clear'):
+            memory = memory_manager.load_memory()
+            if channel_id in memory.get("channel_memory", {}):
+                memory_manager.update_channel_memory(memory, channel_id, [])
+                memory_manager.save_memory(memory)
+                await self.send_message(channel.id, "Chat history cleared for this channel!")
+            else:
+                    await self.send_message(channel.id, "No chat history to clear in this channel.")
+            return
+
+        if message.content.startswith('!settings'):
+            await self.send_message(channel.id, "I don't have settings yet! Check back later (or yell at Lily)!")
+            return
+        # --- End of Discord-specific commands ---
+
+        # Process only if bot is mentioned or in a DM
+        if self.user.mentioned_in(message) or isinstance(channel, discord.DMChannel):
+            query = message.content.strip()
             if self.user.mentioned_in(message):
-                query = re.sub(r'<@!?%s>' % self.user.id, '', query).strip()
+                query = re.sub(r'<@!?' + str(self.user.id) + '>', '', query).strip()
 
-            print(f"Discord Interface: Received message from {message.author} in {channel.name if not isinstance(channel, discord.DMChannel) else 'DM'}: {query}")
+            if not query:
+                await self.send_message(channel.id, "Yes?")
+                return
 
-            # Fetch recent message history from Discord API
+            print(f"Discord Interface: Processing query '{query}' from {message.author} in {channel.name if not isinstance(channel, discord.DMChannel) else 'DM'}")
+
+            # --- History Collection from Discord and Memory Manager ---
             history = []
             try:
-                # Fetch messages before the current one, up to a limit (e.g., 20 messages for context)
-                # Ensure we only fetch messages from the user or the bot
-                after_message_id = LAST_RESPONSE_MESSAGE_ID.get(channel.id)
-                async for msg in channel.history(limit=20, before=message):
+                after_message_id = LAST_RESPONSE_MESSAGE_ID.get(channel_id)
+                async for msg in channel.history(limit=10,
+                                                after=discord.Object(id=after_message_id) if after_message_id else None):
                     if msg.author == self.user:
                         history.append({"role": "assistant", "content": msg.content})
-                    elif msg.author == message.author: # The user who sent the current message
+                    elif msg.author != self.user:
                         history.append({"role": "user", "content": msg.content})
-                    # Stop fetching if we hit a previously responded message
                     if after_message_id and msg.id == after_message_id:
                         break
+                history.reverse()
 
-                history.reverse() # History needs to be oldest first
-
-            except discord.Forbidden:
-                print(f"Discord Interface Error: Bot does not have permissions to read message history in {channel.name}.")
-                history = [] # Reset history on error
-            except discord.HTTPException as e:
+            except Exception as e:
                 print(f"Discord Interface Error fetching history from Discord: {e}")
                 history = [] # Reset history on error
 
-
-            # Load persistent memory for this channel
             memory = memory_manager.load_memory()
             older_history = memory_manager.get_channel_memory(memory, channel_id)
 
-            # Combine older history with current session's fetched messages (excluding the current query as it's separate)
             combined_history = older_history + history
 
 

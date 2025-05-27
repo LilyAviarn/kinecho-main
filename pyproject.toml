@@ -7,7 +7,7 @@ authors = [
 ]
 license = {text = "None"}
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "altair (>=5.5.0,<6.0.0)",
     "asyncio (>=3.4.3,<4.0.0)",

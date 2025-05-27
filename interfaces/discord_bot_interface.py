@@ -39,7 +39,6 @@ class DiscordInterface(KinechoInterface, discord.Client):
     # --- Discord.py Specific Event Overrides ---
 
     async def on_message(self, message: discord.Message):
-        print("Discord Interface: Direct on_message triggered") # Debug Print
         """
         Overrides discord.Client.on_message.
         Will then correctly call class KinechoInterface's receive_message.

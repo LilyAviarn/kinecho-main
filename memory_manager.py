@@ -1,4 +1,3 @@
-# memory_manager.py
 import json
 
 MEMORY_FILE = "kinecho_memory.json"
@@ -17,11 +16,11 @@ def save_memory(memory):
         json.dump(memory, f, indent=4)
 
 def get_channel_memory(memory, channel_id):
-    channel_key = DM_KEY if channel_id is None else str(channel_id)  # Use DM_KEY for DMs
+    channel_key = DM_KEY if channel_id is None else str(channel_id)
     return memory.get(channel_key, [])
 
 def update_channel_memory(memory, channel_id, new_data):
-    channel_key = DM_KEY if channel_id is None else str(channel_id)  # Use DM_KEY for DMs
+    channel_key = DM_KEY if channel_id is None else str(channel_id)
     if channel_key not in memory:
         memory[channel_key] = []
     formatted_data = []

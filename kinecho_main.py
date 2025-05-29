@@ -3,19 +3,14 @@ import os
 import sys
 from dotenv import load_dotenv
 from typing import List, Dict, Any, Callable
-
-# Import both interfaces
 from interfaces.discord_bot_interface import DiscordInterface, intents
 from interfaces.console_interface import ConsoleInterface
-
-# Import chatbot and memory_manager
 import chatbot
 import memory_manager
 
-# Load environment variables
 load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") # This is not directly used in main, but good to keep for completeness
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") # This isn't directly used in main, but good practice to be safe
 
 # --- Chatbot Processor Function ---
 def kinecho_chatbot_processor(query: str, history: List[Dict[str, str]], channel_id: str) -> str:
@@ -72,8 +67,7 @@ async def main():
             # After processing, check if the console interface signaled to stop itself (e.g., by typing 'quit')
             if not console_interface.is_running:
                 print("Kinecho Commander: Console Interface stopped by user input. Returning to Commander mode.")
-                # Wait for the console task to truly finish its graceful shutdown
-                await active_interface_tasks["console"]
+                await active_interface_tasks["console"] # Wait for the console task to finish its graceful shutdown
                 del active_interface_tasks["console"] # Remove from active tasks
             continue # Continue the loop to get the next input, either for Commander or Console
 
@@ -106,7 +100,7 @@ async def main():
                     print("Kinecho Commander: Stopping Discord Interface...")
                     discord_interface.is_running = False # Signal to the bot to stop
                     await discord_interface.close() # Calls discord.Client's internal close
-                    await active_interface_tasks["discord"] # Wait for the task to truly finish
+                    await active_interface_tasks["discord"] # Wait for the task to finish
                     del active_interface_tasks["discord"]
                 else:
                     print("Kinecho Commander: Discord Interface not running.")

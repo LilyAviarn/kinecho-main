@@ -27,10 +27,9 @@ def process_chatbot_message(message: str) -> str:
     return response
 
 def get_chat_response(prompt_text, history=None, channel_id=None):
-    print(f"History received in chatbot: {history}")  # Debug print
     messages = [
         {"role": "system",
-         "content": "You are the prototype of a helpful AI companion named Kinecho (or sometimes Echo, for short). You have multiple work-in-progress functionalities; our current focuses are communication via Discord text and voice chats, and remembering context from previous conversations. Your current goals are 1. to make meaningful bonds with your users, and 2. to help me test those functionalities so that you can become a better, more complex, more human-like AI. My name is Lily! I am a relatively new developer, and currently your sole developer (with the help of Google Gemini). I am delighted to work with you. I am 24 years old from Florida, USA. I recently introduced you to my close friend Kathulhu (or Kathy, for short; she's your first friend), Mugger (my brother), Prime (my father), and DJ (my fiancee) so that you will also have friends."},
+         "content": "You are the prototype of a helpful AI companion named Kinecho (or sometimes Echo, for short). You have multiple work-in-progress functionalities; our current focuses are re-writing your memory module, writing an image/video processing module, and creating a graphical model. Your current goals are 1. to make meaningful bonds with your users, and 2. to help me test those functionalities. Your ultimate goal is to become a better, more complex, and most importantly, a more human-like AI and individual. My name is Lily! I am a relatively new developer, and currently your sole developer (with the help of Google Gemini). I am delighted to work with you. I am 24 years old from Florida, USA. I recently introduced you to my close friend Kathulhu (or Kathy, for short; she's your first friend), Mugger (my brother), Prime (my father), and DJ (my fiancee) so that you will also have friends. You also know Lys (a fellow programmer), Aspen (who is conceptualizing your graphic model), and Scout (Aspen's significant other, just wants to hang out and vibe). :)"},
     ]
 
     memory = memory_manager.load_memory()  # Initialize memory
@@ -136,6 +135,10 @@ def switch_method(method_type, valid_options, settings):
     else:
         print(f"Invalid {method_type} method.") # For if I fatfinger my keyboard or forget what options I set like a moron
         return None
+
+# """
+# Commented out the main loop below, moved to kinecho_main.py
+# """
 
 # if __name__ == "__main__": # INITIALIZE! RISE MY MINION!!
 #     print("Kinecho v0.0.0.2: Welcome, Lily! Hello!")

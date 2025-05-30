@@ -42,7 +42,7 @@ class ConsoleInterface(KinechoInterface):
         """
         if not self.is_running:
             # Should not happen if commander is correctly managing tasks
-            print("Console Interface: Received message while not running.")
+            print("[ERROR] Console Interface: Received message while not running. ")
             return
 
         user_message = message.strip()
@@ -82,4 +82,4 @@ class ConsoleInterface(KinechoInterface):
         """
         self.is_running = False
         self._quit_event.set() # Set the event to release initialize_interface.wait()
-        print("Console Interface: Received stop command.")
+        print(f"Interface {self.__class__.__name__} stopped.")

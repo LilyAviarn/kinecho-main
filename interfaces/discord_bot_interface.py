@@ -83,9 +83,9 @@ class DiscordInterface(KinechoInterface, discord.Client):
         This method is the KinechoInterface abstraction for incoming messages.
         """
         # Ignore messages from the bot itself
-#        if message.author == self.user:
+        if message.author == self.user:
 #           print(f"DEBUG: Message ignored: From bot itself ({self.user.name}).")
-#            return
+            return
 
         # Ensure the bot is intended to be running (controlled by Commander)
         if not self.is_running:
@@ -119,13 +119,13 @@ class DiscordInterface(KinechoInterface, discord.Client):
             if not query:
 #                print("DEBUG: Query is empty after mention removal. Sending a default prompt.")
                 if is_direct_mention: # Only respond to empty mention if it was a direct one
-                    await self.send_message(channel, f"Hey <@{message.author.id}>, what's up? (Type 'help' if you're stuck!)")
+                    await self.send_message(channel, f"Hey <@{message.author.id}>, what's up?")
                 return
 
             # --- History Collection from Memory Manager ---
             memory = memory_manager.load_memory()
             history = memory_manager.get_channel_memory(memory, channel_id)
-#            print(f"DEBUG: History fetched for channel {channel_id}: {history}")
+            print(f"DEBUG: History fetched for channel {channel_id}: {history}")
 
             # --- Get response from Chatbot Processor ---
             print(f"DEBUG: Calling chatbot_processor with query: '{query}'")
@@ -141,7 +141,7 @@ class DiscordInterface(KinechoInterface, discord.Client):
             # --- Send Response and Update Memory ---
             # Pass the channel object directly to send_message
             await self.send_message(channel, response_to_send)
-#            print(f"Discord Interface: Sent response to {channel.name if not isinstance(channel, discord.DMChannel) else 'DM'}.")
+            print(f"Discord Interface: Sent response to {channel.name if not isinstance(channel, discord.DMChannel) else 'DM'}.")
 
             # Update persistent memory with the new user query (cleaned) and bot response (raw)
             memory_manager.update_channel_memory(
@@ -153,7 +153,7 @@ class DiscordInterface(KinechoInterface, discord.Client):
             memory_manager.save_memory(memory)
             print("DEBUG: Memory updated and saved.")
 #        else:
-#            # If bot not mentioned and not a DM, just ignore.
+            # If bot not mentioned and not a DM, just ignore.
 #            print(f"DEBUG: Message ignored (not DM or direct mention). Content: '{message.content}'")
 
     # --- Discord.py Specific Event Overrides (that don't fulfill KinechoInterface abstract methods) ---

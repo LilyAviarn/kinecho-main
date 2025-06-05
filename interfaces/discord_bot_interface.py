@@ -127,7 +127,7 @@ class DiscordInterface(KinechoInterface, discord.Client):
             query = message.content # query will be the content passed to the chatbot.
             if is_direct_mention and message.guild: # Only remove mention if in a guild
                 query = re.sub(r'<@!?%s>' % self.user.id, '', query).strip()
-                print(f"DEBUG: Query after mention removal: '{query}'")
+#                print(f"DEBUG: Query after mention removal: '{query}'")
 
             # If the query is empty after mention removal (e.g., just a mention like "@Kinecho")
             if not query:
@@ -139,7 +139,7 @@ class DiscordInterface(KinechoInterface, discord.Client):
             # Add user's message as an event BEFORE calling the chatbot, using the *original* content
             memory_manager.add_user_event(memory, user_id, "message_in", channel_id, original_message_content, "discord")
             memory_manager.save_memory(memory) # Save immediately after user message event
-            print("DEBUG: User message event added and memory saved.")
+#            print("DEBUG: User message event added and memory saved.")
 
             # --- Get response from Chatbot Processor ---
             print(f"DEBUG: Calling chatbot_processor with query: '{query}' for user {user_id} in channel {channel_id}")
@@ -150,7 +150,7 @@ class DiscordInterface(KinechoInterface, discord.Client):
                 channel_id,      # Channel ID from Discord
                 "discord"        # Explicitly state the interface type
             )
-            print(f"DEBUG: Raw response from chatbot_processor (chatbot.py): '{response_content}'")
+#            print(f"DEBUG: Raw response from chatbot_processor (chatbot.py): '{response_content}'")
 
             try: # Prepend a mention to the original message author (only if it was a guild mention)
                 response_to_send = response_content
@@ -167,7 +167,7 @@ class DiscordInterface(KinechoInterface, discord.Client):
                 # Use 'message_out' type for outgoing messages from the assistant
                 memory_manager.add_user_event(memory, user_id, "message_out", channel_id, response_to_send, "discord") # Store the full response sent
                 memory_manager.save_memory(memory) # Save after bot response event
-                print("DEBUG: Bot response event added and memory saved.")
+        #        print("DEBUG: Bot response event added and memory saved.")
        
             except Exception as e:
                 print(f"ERROR: An unexpected error occured while preparing/sending Discord response or saving memory: {e}")

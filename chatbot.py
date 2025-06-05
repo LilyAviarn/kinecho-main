@@ -4,6 +4,7 @@ import speech_recognition as sr
 import pyttsx3
 import configparser
 import memory_manager
+import traceback
 from dotenv import load_dotenv
 load_dotenv() # This loads the variables from .env into your environment
 
@@ -13,7 +14,7 @@ recognizer = sr.Recognizer()
 microphone = sr.Microphone()
 
 SETTINGS_FILE = os.path.abspath("settings.ini") # Locate settings file
-SYSTEN_PROMPT_FILE = os.path.abspath("system_prompt.txt")
+SYSTEM_PROMPT_FILE = os.path.abspath("system_prompt.txt")
 
 def process_chatbot_message(message: str) -> str:
     """
@@ -39,15 +40,27 @@ def load_system_prompt(user_name: str) -> str:
     except KeyError as e:
         print(f"ERROR: Missing placeholder in system prompt file: {e}. Check system_prompt.txt for {{user_name}}.")
         return "You are a helpful AI companion named Kinecho." # Fallback if formatting fails (e.g., missing {user_name} placeholder)
+    except Exception as e: # Catch any other unexpected errors during prompt loading
+        print(f"ERROR: Unexpected error loading system prompt: {e}")
+        traceback.print_exc()
+        return "You are a helpful AI companion named Kinecho."
 
 def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface_type: str):
     """
     Generates a chat response using OpenAI's API.
     For now, this function will respond without conversational memory.
     """
-    print(f"DEBUG: get_chat_response received: user_id={user_id}, prompt='{prompt_text}', channel_id={channel_id}, interface_type={interface_type}")
+#    print(f"DEBUG: get_chat_response received: user_id={user_id}, prompt='{prompt_text}', channel_id={channel_id}, interface_type={interface_type}")
 
-    memory = memory_manager.load_memory() # Load the overall memory structure
+    memory = {}
+
+    try:
+        memory = memory_manager.load_memory() # Load the overall memory structure
+#        print("DEBUG: Memory loaded successfully.")
+    except Exception as e:
+        print(f"ERROR: Failed to load memory: {e}")
+        traceback.print_exc()
+        print("WARNING: Proceeding with empty memory for this request.")
 
     # Retrieve the specific user's data and their events
     user_data = memory.get("users", {}).get(user_id, {})
@@ -55,7 +68,14 @@ def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface
     user_name = user_data.get("user_name", "User")
 
     # PERSONA CORE
-    system_prompt_content = load_system_prompt(user_name)
+    system_prompt_content = "You are a helpful AI companion named Kinecho." # Default in case of loading failure
+    try:
+        system_prompt_content = load_system_prompt(user_name)
+#        print("DEBUG: System prompt content prepared.")
+    except Exception as e:
+        print(f"ERROR: Failed to prepare system prompt content: {e}")
+        traceback.print_exc()
+        print("WARNING: Proceeding with default system prompt.")
 
     messages = [
         {"role": "system",
@@ -97,19 +117,21 @@ def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface
     # Finally, add the current user prompt to the messages list
     messages.append({"role": "user", "content": prompt_text})
 
-    print(f"DEBUG: Messages sent to OpenAI API: {messages}") # Added for debugging
+    print(f"DEBUG: Messages sent to OpenAI API: {messages}")
 
     try:
-        selected_model = "gpt-3.5-turbo" # Or "gpt-4", if you have access and prefer
+        selected_model = "gpt-3.5-turbo" # Will be updated to a more powerful model in the future
 
         completion = client.chat.completions.create(
             model=selected_model,
-            messages=messages # This will now use the dynamically built history
+            messages=messages
         )
+#        print("DEBUG: Successfully received response from OpenAI API.")
         response_content = completion.choices[0].message.content
         return response_content
     except Exception as e:
         print(f"Error getting chat response from OpenAI: {e}")
+        traceback.print_exc()
         return f"I'm sorry, I'm having trouble connecting to my brain ('{selected_model}') right now. Please try again later."
 
 def listen_for_command():

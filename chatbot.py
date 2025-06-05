@@ -65,7 +65,8 @@ def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface
     # Retrieve the specific user's data and their events
     user_data = memory.get("users", {}).get(user_id, {})
     user_events = user_data.get("events", [])
-    user_name = user_data.get("user_name", "User")
+    user_name = user_data.get("profile", {}).get("name", "User")
+    print (f"DEBUG: Retrieved user_name from memory: '{user_name}' for user_id: '{user_id}")
 
     # PERSONA CORE
     system_prompt_content = "You are a helpful AI companion named Kinecho." # Default in case of loading failure

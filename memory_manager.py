@@ -25,13 +25,14 @@ def load_memory():
 def create_or_get_user(memory: dict, user_id: str, user_name: str, interface_type: str, discord_id: str = None) -> dict:
     """
     Ensures a user's profile exists in the memory and returns their profile.
-    If the user doesn't exist, a new profile is created.
+    If the user doesn't exist, a new profile is created with the nested 'profile' structure.
+    If the user exists, their 'profile.name' is updated to the latest provided.
     """
     if "users" not in memory:
         memory["users"] = {}
 
     if user_id not in memory["users"]:
-        user_profile = {
+        memory["users"][user_id] = {
             "profile": {
                 "name": user_name,
                 "interface_type": interface_type,
@@ -40,9 +41,19 @@ def create_or_get_user(memory: dict, user_id: str, user_name: str, interface_typ
             "events": [],
             "derived_facts": []
         }
+    else:
+        # User exists, ensure 'profile' dictionary exists and update the 'name'
+        user_profile = memory["users"][user_id].get("profile", {})
+        if not user_profile: # If 'profile' key didn't exist or was empty
+            memory["users"][user_id]["profile"] = {}
+            user_profile = memory["users"][user_id]["profile"]
+
+        user_profile["name"] = user_name
+        # Also update other profile details in case they changed or were missing
+        user_profile["interface_type"] = interface_type
         if discord_id:
-            user_profile["profile"]["discord_id"] = discord_id
-        memory["users"][user_id] = user_profile
+            user_profile["discord_id"] = discord_id
+
     return memory["users"][user_id]
 
 def add_user_event(memory: dict, user_id: str, event_type: str, channel_id: str, content: str, source: str):
@@ -52,8 +63,11 @@ def add_user_event(memory: dict, user_id: str, event_type: str, channel_id: str,
     if user_id not in memory["users"]:
         # This should ideally not happen if create_or_get_user is called first
         print(f"Warning: User {user_id} not found when trying to add event. Creating temporary entry.")
-        memory["users"][user_id] = {"profile": {"name": f"Unknown {user_id}", "interface_type": source}, "events": [], "derived_facts": []}
-
+        memory["users"][user_id] = {
+            "profile": {"name": f"Unknown {user_id}", "interface_type": source},
+            "events": [],
+            "derived_facts": []
+        }
     user_events = memory["users"][user_id]["events"]
     event = {
         "timestamp": datetime.datetime.now().isoformat(),

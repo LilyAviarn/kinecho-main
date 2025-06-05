@@ -13,7 +13,7 @@ recognizer = sr.Recognizer()
 microphone = sr.Microphone()
 
 SETTINGS_FILE = os.path.abspath("settings.ini") # Locate settings file
-
+SYSTEN_PROMPT_FILE = os.path.abspath("system_prompt.txt")
 
 def process_chatbot_message(message: str) -> str:
     """
@@ -25,6 +25,20 @@ def process_chatbot_message(message: str) -> str:
     # as we'll integrate memory more properly in a later step.
     response = get_chat_response(prompt_text=message, history=None, channel_id="test_channel_from_app_main")
     return response
+
+def load_system_prompt(user_name: str) -> str:
+    try:
+        with open(SYSTEM_PROMPT_FILE, "r", encoding="utf-8") as f:
+            # Read the template and format it with the user_name
+            # Note: The placeholder {user_name} must exist in system_prompt.txt
+            prompt_template = f.read()
+            return prompt_template.format(user_name=user_name)
+    except FileNotFoundError:
+        print(f"ERROR: System prompt file not found at {SYSTEM_PROMPT_FILE}. Using default prompt.")
+        return "You are a helpful AI companion named Kinecho." # Fallback default prompt
+    except KeyError as e:
+        print(f"ERROR: Missing placeholder in system prompt file: {e}. Check system_prompt.txt for {{user_name}}.")
+        return "You are a helpful AI companion named Kinecho." # Fallback if formatting fails (e.g., missing {user_name} placeholder)
 
 def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface_type: str):
     """
@@ -38,12 +52,14 @@ def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface
     # Retrieve the specific user's data and their events
     user_data = memory.get("users", {}).get(user_id, {})
     user_events = user_data.get("events", [])
-    user_name = user_date.get("user_name", "User")
+    user_name = user_data.get("user_name", "User")
 
     # PERSONA CORE
+    system_prompt_content = load_system_prompt(user_name)
+
     messages = [
         {"role": "system",
-         "content": "You are the prototype of a helpful AI companion named Kinecho (or sometimes 'Kino'). You are designed to be friendly, concise, and provide helpful information. You value user privacy and data security. You are currently running as a prototype."
+         "content": system_prompt_content
         },
     ]
 

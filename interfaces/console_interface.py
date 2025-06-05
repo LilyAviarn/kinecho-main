@@ -52,8 +52,8 @@ class ConsoleInterface(KinechoInterface):
 
         # --- New Memory Handling for Console ---
         # Define console user ID and channel ID. These are fixed for the console.
-        console_user_id = "kinecho_console_user_default"
-        console_user_name = "Console User"
+        console_user_id = "212343502422540288"
+        console_user_name = "Lily"
         console_channel_id = "kinecho_console_chat" # Still use this for channel context in events
 
         # Load memory and ensure the console user exists in memory
@@ -63,16 +63,11 @@ class ConsoleInterface(KinechoInterface):
         # Add user's message as an event BEFORE calling the chatbot
         memory_manager.add_user_event(memory, console_user_id, "message_in", console_channel_id, user_message, "console")
         memory_manager.save_memory(memory) # Save immediately after user message event
-        print("DEBUG: Console user message event added and memory saved.")
+#        print("DEBUG: Console user message event added and memory saved.")
 
         # --- Get response from Chatbot Processor ---
-        # IMPORTANT: The chatbot_processor_func signature will still match the *original*
-        # one here, as kinecho_main.py is not yet updated.
-        # So, we pass 'user_message', 'history' (from old memory), 'channel_id'.
-        # Once kinecho_main.py is updated, you will change this call.
 
-        print(f"DEBUG: Calling chatbot_processor with query: '{user_message}'")
-        # Update this line to pass user_id, user_message, channel_id, and interface_type
+#        print(f"DEBUG: Calling chatbot_processor with query: '{user_message}'")
         response_content = self.chatbot_processor(
             console_user_id,    # This variable should be available from earlier in the method
             user_message,
@@ -82,12 +77,12 @@ class ConsoleInterface(KinechoInterface):
 
         # --- Send Response and Update Memory ---
         await self.send_message(console_channel_id, response_content)
-        print("Console Interface: Sent response.")
+#        print("DEBUG: Console Interface: Sent response.")
 
         # Add bot's response as an event
         memory_manager.add_user_event(memory, console_user_id, "message_out", console_channel_id, response_content, "console")
         memory_manager.save_memory(memory) # Save after bot response event
-        print("DEBUG: Console bot response event added and memory saved.")
+#        print("DEBUG: Console bot response event added and memory saved.")
 
 
     async def stop(self):

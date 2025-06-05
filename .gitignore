@@ -39,3 +39,4 @@ htmlcov/
 
 # Project-specific files
 kinecho_memory.json
+kinecho_user_memory.json

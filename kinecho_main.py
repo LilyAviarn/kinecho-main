@@ -13,15 +13,17 @@ DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") # This isn't directly used in main, but good practice to be safe
 
 # --- Chatbot Processor Function ---
-def kinecho_chatbot_processor(query: str, history: List[Dict[str, str]], channel_id: str) -> str:
+def kinecho_chatbot_processor(user_id: str, user_message: str, channel_id: str, interface_type: str) -> str:
     """
-    Processes a user query using the core chatbot logic.
+    Processes a user message using the core chatbot logic.
     This function is passed to each interface.
     """
+    print(f"DEBUG: kinecho_chatbot_processor received: user_id={user_id}, message='{user_message}', channel_id={channel_id}, interface_type={interface_type}")
     response = chatbot.get_chat_response(
-        prompt_text=query,
-        history=history,
-        channel_id=channel_id
+        user_id=user_id,
+        prompt_text=user_message, # Renamed query to user_message for clarity
+        channel_id=channel_id,
+        interface_type=interface_type
     )
     return response
 

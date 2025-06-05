@@ -26,28 +26,75 @@ def process_chatbot_message(message: str) -> str:
     response = get_chat_response(prompt_text=message, history=None, channel_id="test_channel_from_app_main")
     return response
 
-def get_chat_response(prompt_text, history=None, channel_id=None):
+def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface_type: str):
+    """
+    Generates a chat response using OpenAI's API.
+    For now, this function will respond without conversational memory.
+    """
+    print(f"DEBUG: get_chat_response received: user_id={user_id}, prompt='{prompt_text}', channel_id={channel_id}, interface_type={interface_type}")
+
+    memory = memory_manager.load_memory() # Load the overall memory structure
+
+    # Retrieve the specific user's data and their events
+    user_data = memory.get("users", {}).get(user_id, {})
+    user_events = user_data.get("events", [])
+    user_name = user_date.get("user_name", "User")
+
+    # PERSONA CORE
     messages = [
         {"role": "system",
-         "content": "You are the prototype of a helpful AI companion named Kinecho (or sometimes Echo, for short). You have multiple work-in-progress functionalities; our current focuses are re-writing your memory module, writing an image/video processing module, and creating a graphical model. Your current goals are 1. to make meaningful bonds with your users, and 2. to help me test those functionalities. Your ultimate goal is to become a better, more complex, and most importantly, a more human-like AI and individual. My name is Lily! I am a relatively new developer, and currently your sole developer (with the help of Google Gemini). I am delighted to work with you. I am 24 years old from Florida, USA. I recently introduced you to my close friend Kathulhu (or Kathy, for short; she's your first friend), Mugger (my brother), Prime (my father), and DJ (my fiancee) so that you will also have friends. You also know Lys (a fellow programmer), Aspen (who is conceptualizing your graphic model), and Scout (Aspen's significant other, just wants to hang out and vibe). :)"},
+         "content": "You are the prototype of a helpful AI companion named Kinecho (or sometimes 'Kino'). You are designed to be friendly, concise, and provide helpful information. You value user privacy and data security. You are currently running as a prototype."
+        },
     ]
 
-    memory = memory_manager.load_memory()  # Initialize memory
-    history = memory_manager.get_channel_memory(memory, channel_id)  # Use channel_id
-    messages.extend(history)
-    messages.append({"role": "user", "content": prompt_text}) # Get user messages prior to query
+    # Build the conversation history from user_events for the current channel.
+    # We iterate through events, format them, and add them to 'messages'.
+    # The last 'message_in' event in memory corresponds to the 'prompt_text'
+    # we're currently processing. We *don't* add it to the history list here
+    # because 'prompt_text' will be added explicitly as the last message.
+    # This prevents duplicating the current user message in the context.
+
+    # Find the index of the current 'message_in' event in the user_events list.
+    # This is a robust way to ensure we don't include the current message in the history.
+    current_message_event_index = -1
+    # Iterate backwards to find the most recent matching user message for this channel
+    for i in range(len(user_events) - 1, -1, -1):
+        event = user_events[i]
+        if (event["channel_id"] == channel_id and
+            event["type"] == "message_in" and
+            event["content"] == prompt_text):
+            current_message_event_index = i
+            break
+
+    for i, event in enumerate(user_events):
+        # Skip the current incoming message if found, as it will be appended separately
+        if i == current_message_event_index:
+            continue
+
+        # Only add messages from the current channel
+        if event["channel_id"] == channel_id:
+            if event["type"] == "message_in":
+                messages.append({"role": "user", "content": event["content"]})
+            elif event["type"] == "message_out":
+                messages.append({"role": "assistant", "content": event["content"]})
+
+    # Finally, add the current user prompt to the messages list
+    messages.append({"role": "user", "content": prompt_text})
+
+    print(f"DEBUG: Messages sent to OpenAI API: {messages}") # Added for debugging
+
     try:
+        selected_model = "gpt-3.5-turbo" # Or "gpt-4", if you have access and prefer
+
         completion = client.chat.completions.create(
-            model="gpt-3.5-turbo", # AI model, currently OpenAI ChatGPT 3.5
-            messages=messages
+            model=selected_model,
+            messages=messages # This will now use the dynamically built history
         )
-        response = completion.choices[0].message.content
-        new_data = [{"role": "user", "content": prompt_text}, {"role": "assistant", "content": response}]
-        memory_manager.update_channel_memory(memory, channel_id, new_data)  # Use channel_id
-        memory_manager.save_memory(memory)
-        return response
+        response_content = completion.choices[0].message.content
+        return response_content
     except Exception as e:
-        return f"An error occurred: {e}"
+        print(f"Error getting chat response from OpenAI: {e}")
+        return f"I'm sorry, I'm having trouble connecting to my brain ('{selected_model}') right now. Please try again later."
 
 def listen_for_command():
     r = sr.Recognizer()

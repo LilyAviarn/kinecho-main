@@ -4,6 +4,7 @@ import speech_recognition as sr
 import pyttsx3
 import configparser
 import memory_manager
+import traceback
 from dotenv import load_dotenv
 load_dotenv() # This loads the variables from .env into your environment
 
@@ -13,7 +14,7 @@ recognizer = sr.Recognizer()
 microphone = sr.Microphone()
 
 SETTINGS_FILE = os.path.abspath("settings.ini") # Locate settings file
-
+SYSTEM_PROMPT_FILE = os.path.abspath("system_prompt.txt")
 
 def process_chatbot_message(message: str) -> str:
     """
@@ -26,28 +27,113 @@ def process_chatbot_message(message: str) -> str:
     response = get_chat_response(prompt_text=message, history=None, channel_id="test_channel_from_app_main")
     return response
 
-def get_chat_response(prompt_text, history=None, channel_id=None):
+def load_system_prompt(user_name: str) -> str:
+    try:
+        with open(SYSTEM_PROMPT_FILE, "r", encoding="utf-8") as f:
+            # Read the template and format it with the user_name
+            # Note: The placeholder {user_name} must exist in system_prompt.txt
+            prompt_template = f.read()
+            return prompt_template.format(user_name=user_name)
+    except FileNotFoundError:
+        print(f"ERROR: System prompt file not found at {SYSTEM_PROMPT_FILE}. Using default prompt.")
+        return "You are a helpful AI companion named Kinecho." # Fallback default prompt
+    except KeyError as e:
+        print(f"ERROR: Missing placeholder in system prompt file: {e}. Check system_prompt.txt for {{user_name}}.")
+        return "You are a helpful AI companion named Kinecho." # Fallback if formatting fails (e.g., missing {user_name} placeholder)
+    except Exception as e: # Catch any other unexpected errors during prompt loading
+        print(f"ERROR: Unexpected error loading system prompt: {e}")
+        traceback.print_exc()
+        return "You are a helpful AI companion named Kinecho."
+
+def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface_type: str):
+    """
+    Generates a chat response using OpenAI's API.
+    For now, this function will respond without conversational memory.
+    """
+#    print(f"DEBUG: get_chat_response received: user_id={user_id}, prompt='{prompt_text}', channel_id={channel_id}, interface_type={interface_type}")
+
+    memory = {}
+
+    try:
+        memory = memory_manager.load_memory() # Load the overall memory structure
+#        print("DEBUG: Memory loaded successfully.")
+    except Exception as e:
+        print(f"ERROR: Failed to load memory: {e}")
+        traceback.print_exc()
+        print("WARNING: Proceeding with empty memory for this request.")
+
+    # Retrieve the specific user's data and their events
+    user_data = memory.get("users", {}).get(user_id, {})
+    user_events = user_data.get("events", [])
+    user_name = user_data.get("profile", {}).get("name", "User")
+    print (f"DEBUG: Retrieved user_name from memory: '{user_name}' for user_id: '{user_id}")
+
+    # PERSONA CORE
+    system_prompt_content = "You are a helpful AI companion named Kinecho." # Default in case of loading failure
+    try:
+        system_prompt_content = load_system_prompt(user_name)
+#        print("DEBUG: System prompt content prepared.")
+    except Exception as e:
+        print(f"ERROR: Failed to prepare system prompt content: {e}")
+        traceback.print_exc()
+        print("WARNING: Proceeding with default system prompt.")
+
     messages = [
         {"role": "system",
-         "content": "You are the prototype of a helpful AI companion named Kinecho (or sometimes Echo, for short). You have multiple work-in-progress functionalities; our current focuses are re-writing your memory module, writing an image/video processing module, and creating a graphical model. Your current goals are 1. to make meaningful bonds with your users, and 2. to help me test those functionalities. Your ultimate goal is to become a better, more complex, and most importantly, a more human-like AI and individual. My name is Lily! I am a relatively new developer, and currently your sole developer (with the help of Google Gemini). I am delighted to work with you. I am 24 years old from Florida, USA. I recently introduced you to my close friend Kathulhu (or Kathy, for short; she's your first friend), Mugger (my brother), Prime (my father), and DJ (my fiancee) so that you will also have friends. You also know Lys (a fellow programmer), Aspen (who is conceptualizing your graphic model), and Scout (Aspen's significant other, just wants to hang out and vibe). :)"},
+         "content": system_prompt_content
+        },
     ]
 
-    memory = memory_manager.load_memory()  # Initialize memory
-    history = memory_manager.get_channel_memory(memory, channel_id)  # Use channel_id
-    messages.extend(history)
-    messages.append({"role": "user", "content": prompt_text}) # Get user messages prior to query
+    # Build the conversation history from user_events for the current channel.
+    # We iterate through events, format them, and add them to 'messages'.
+    # The last 'message_in' event in memory corresponds to the 'prompt_text'
+    # we're currently processing. We *don't* add it to the history list here
+    # because 'prompt_text' will be added explicitly as the last message.
+    # This prevents duplicating the current user message in the context.
+
+    # Find the index of the current 'message_in' event in the user_events list.
+    # This is a robust way to ensure we don't include the current message in the history.
+    current_message_event_index = -1
+    # Iterate backwards to find the most recent matching user message for this channel
+    for i in range(len(user_events) - 1, -1, -1):
+        event = user_events[i]
+        if (event["channel_id"] == channel_id and
+            event["type"] == "message_in" and
+            event["content"] == prompt_text):
+            current_message_event_index = i
+            break
+
+    for i, event in enumerate(user_events):
+        # Skip the current incoming message if found, as it will be appended separately
+        if i == current_message_event_index:
+            continue
+
+        # Only add messages from the current channel
+        if event["channel_id"] == channel_id:
+            if event["type"] == "message_in":
+                messages.append({"role": "user", "content": event["content"]})
+            elif event["type"] == "message_out":
+                messages.append({"role": "assistant", "content": event["content"]})
+
+    # Finally, add the current user prompt to the messages list
+    messages.append({"role": "user", "content": prompt_text})
+
+    print(f"DEBUG: Messages sent to OpenAI API: {messages}")
+
     try:
+        selected_model = "gpt-3.5-turbo" # Will be updated to a more powerful model in the future
+
         completion = client.chat.completions.create(
-            model="gpt-3.5-turbo", # AI model, currently OpenAI ChatGPT 3.5
+            model=selected_model,
             messages=messages
         )
-        response = completion.choices[0].message.content
-        new_data = [{"role": "user", "content": prompt_text}, {"role": "assistant", "content": response}]
-        memory_manager.update_channel_memory(memory, channel_id, new_data)  # Use channel_id
-        memory_manager.save_memory(memory)
-        return response
+#        print("DEBUG: Successfully received response from OpenAI API.")
+        response_content = completion.choices[0].message.content
+        return response_content
     except Exception as e:
-        return f"An error occurred: {e}"
+        print(f"Error getting chat response from OpenAI: {e}")
+        traceback.print_exc()
+        return f"I'm sorry, I'm having trouble connecting to my brain ('{selected_model}') right now. Please try again later."
 
 def listen_for_command():
     r = sr.Recognizer()

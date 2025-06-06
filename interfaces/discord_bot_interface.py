@@ -161,7 +161,6 @@ class DiscordInterface(KinechoInterface, discord.Client):
                 # --- Send Response and Update Memory ---
                 # Pass the channel object directly to send_message
                 await self.send_message(channel, response_to_send)
-                print(f"Discord Interface: Sent response to {channel.name if not isinstance(channel, discord.DMChannel) else 'DM'}.")
 
                 # Now, add the bot's response as an event using the *new* memory system
                 # Use 'message_out' type for outgoing messages from the assistant

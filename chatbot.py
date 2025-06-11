@@ -78,7 +78,7 @@ async def get_chat_response(user_id: str, prompt_text: str, channel_id: str, int
     # PERSONA CORE
     system_prompt_content = "You are a helpful AI companion named Kinecho." # Default in case of loading failure
     try:
-        system_prompt_content = load_system_prompt(user_name)
+        system_prompt_content = load_system_prompt(user_name, user_id)
     except Exception as e:
         print(f"ERROR: Failed to prepare system prompt content: {e}")
         traceback.print_exc()

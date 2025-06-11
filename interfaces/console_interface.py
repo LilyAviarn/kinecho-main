@@ -15,6 +15,10 @@ class ConsoleInterface(KinechoInterface):
         Initializes the console interface.
         It sets up for input, but the main input loop will be in kinecho_main.py.
         """
+        # Clear the quit event at the start of initialization
+        # This ensures that if the console was stopped previously,
+        # the event is reset and initialize_interface will wait again.
+        self._quit_event.clear()
         print("Console Interface: Ready for input. Type 'quit' to return to Commander.")
         self.is_running = True
         # This interface itself doesn't loop for input, it blocks and waits to be told to stop.
@@ -37,7 +41,7 @@ class ConsoleInterface(KinechoInterface):
         Processes an incoming message string from the console.
         This method will be called by the Kinecho Commander.
         """
-        user_message = message.strip()
+        user_message = message.content.strip()
 
         if not self.is_running:
             # Should not happen if commander is correctly managing tasks

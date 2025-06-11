@@ -60,24 +60,13 @@ async def main():
         # Read user input using asyncio.to_thread to prevent blocking the event loop
         command_line = (await asyncio.to_thread(input, prompt_text)).strip()
 
-        # --- Input Handling Logic ---
-        # If console interface is active and not stopped by user, forward input to it
-        if "console" in active_interface_tasks and not active_interface_tasks["console"].done() and console_interface.is_running:
-            # Forward the user's input to the console interface for processing
-            await console_interface.receive_message(command_line)
-
-            # After processing, check if the console interface signaled to stop itself (e.g., by typing 'quit')
-            if not console_interface.is_running:
-                print("Kinecho Commander: Console Interface stopped by user input. Returning to Commander mode.")
-                await active_interface_tasks["console"] # Wait for the console task to finish its graceful shutdown
-                del active_interface_tasks["console"] # Remove from active tasks
-            continue # Continue the loop to get the next input, either for Commander or Console
-
-        # If console interface is NOT active for chat, process as a Commander command
+        # STEP 1: Parse the command for the main loop immediately
         parts = command_line.split()
         command = parts[0].lower() if parts else "" # Convert command to lowercase for consistent matching
         target_interface = parts[1].lower() if len(parts) > 1 else "" # Convert target to lowercase
 
+        # STEP 2: Handle main Kinecho Commander commands FIRST
+        # These commands should always be processed by the commander, regardless of console state.
         if command == "start":
             if target_interface == "discord":
                 if "discord" not in active_interface_tasks or active_interface_tasks["discord"].done():
@@ -91,6 +80,8 @@ async def main():
                     print("Kinecho Commander: Starting Console Interface...")
                     console_task = asyncio.create_task(console_interface.initialize_interface())
                     active_interface_tasks["console"] = console_task
+                    await asyncio.sleep(0.01)
+                    continue
                 else:
                     print("Kinecho Commander: Console Interface already running.")
             else:
@@ -127,19 +118,29 @@ async def main():
 
         elif command == "quit" or command == "exit":
             print("Kinecho Commander: Shutting down all active interfaces...")
-            # Create a list of tasks to stop to avoid modifying dict during iteration
-            tasks_to_stop = list(active_interface_tasks.values())
-            for task in tasks_to_stop:
-                if not task.done(): # Only try to stop tasks that are still running
-                    # Find the name of the interface associated with this task
-                    interface_name = [name for name, t in active_interface_tasks.items() if t == task][0]
-                    print(f"Kinecho Commander: Stopping {interface_name}...")
-                    if interface_name == "discord":
+            shutdown_tasks = []
+            for interface_name, task in list(active_interface_tasks.items()):
+                print(f"Kinecho Commander: Attempting to stop {interface_name} interface.")
+                if interface_name == "discord":
+                    if discord_interface:
+                        # Signal discord bot to stop and add its close method to shutdown tasks
                         discord_interface.is_running = False
-                        await discord_interface.close()
-                    elif interface_name == "console":
-                        await console_interface.stop()
-                    await task # Wait for the interface's task to finish its shutdown
+                        shutdown_tasks.append(asyncio.create_task(discord_interface.close()))
+                elif interface_name == "console":
+                    if console_interface:
+                        # Signal console interface to stop and add its stop method to shutdown tasks
+                        shutdown_tasks.append(asyncio.create_task(console_interface.stop()))
+            
+            # Wait for all explicit interface shutdown calls to complete
+            if shutdown_tasks:
+                await asyncio.gather(*shutdown_tasks, return_exceptions=True) # Use return_exceptions=True to allow other tasks to complete even if one fails
+
+            # Now, wait for the main tasks of each interface to complete if they haven't already
+            for interface_name, task in list(active_interface_tasks.items()):
+                if not task.done(): # If the main interface task is still running (e.g., waiting for its _quit_event)
+                    print(f"Kinecho Commander: Waiting for {interface_name} task to finish...")
+                    await task # Await its completion
+
             print("Kinecho Commander: All interfaces stopped. Exiting.")
             break # Exit the command loop
 
@@ -151,10 +152,30 @@ async def main():
             print("  quit / exit             - Stop all running interfaces and exit Kinecho.")
             print("  help                    - Show this help message.")
             print("----------------------------------\n")
-        elif command: # If command is not empty but not recognized
+
+        # STEP 3: If it's NOT a commander command AND the console is active,
+        # then route it to the console interface for chatbot processing.
+        # This condition now only runs if the input was NOT a commander command.
+        elif prompt_text == "You (Kinecho Console) > " and command_line: # Ensure command_line is not empty
+            # Create a mock_message object as console_interface.receive_message expects it
+            user_id = "console_user" # A placeholder user ID for console
+            channel_id = "kinecho_console_chat" # A placeholder channel ID for console
+            mock_message = type('MockMessage', (object,), {
+                'author': type('MockAuthor', (object,), {'id': user_id, 'display_name': "You (Console)"}),
+                'content': command_line,
+                'channel': type('MockChannel', (object,), {'id': channel_id})
+            })()
+            try:
+                await console_interface.receive_message(mock_message)
+            except Exception as e:
+                print(f"ERROR: Console interface message processing failed: {e}")
+            # No 'continue' needed here. The loop will naturally re-evaluate the prompt.
+
+        elif command: # This catches any remaining non-empty commands that weren't recognized
             print(f"Kinecho Commander: Unknown command '{command}'. Type 'help' for commands.")
 
     print("Kinecho Main: Kinecho Commander exited.")
+
 
 if __name__ == "__main__":
     try:

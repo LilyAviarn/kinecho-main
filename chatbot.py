@@ -5,6 +5,9 @@ import pyttsx3
 import configparser
 import memory_manager
 import traceback
+import json # Added for parsing tool call arguments
+import asyncio # Added for awaiting tool calls
+from typing import Any, Callable, List, Dict # Added Dict for tool definitions
 from dotenv import load_dotenv
 load_dotenv() # This loads the variables from .env into your environment
 
@@ -21,42 +24,46 @@ def process_chatbot_message(message: str) -> str:
     Processes a message using the chatbot's logic and returns a response.
     (This will eventually contain your main chatbot processing code)
     """
-    # Call your existing get_chat_response function with the user's message
-    # For now, we're passing None for history and channel_id,
-    # as we'll integrate memory more properly in a later step.
+    # This function is meant for simple cases; the main tool-enabled flow
+    # is now handled directly by kinecho_main.py calling get_chat_response
+    # with appropriate arguments. For process_chatbot_message, we don't have
+    # the interface_instances readily available, so it cannot support tools directly.
+    print("WARNING: process_chatbot_message called without interface_instances. Tool calls will not be supported.")
     response = get_chat_response(prompt_text=message, history=None, channel_id="test_channel_from_app_main")
     return response
 
-def load_system_prompt(user_name: str) -> str:
+def load_system_prompt(user_name: str, user_id: str) -> str:
     try:
         with open(SYSTEM_PROMPT_FILE, "r", encoding="utf-8") as f:
             # Read the template and format it with the user_name
             # Note: The placeholder {user_name} must exist in system_prompt.txt
             prompt_template = f.read()
-            return prompt_template.format(user_name=user_name)
+            return prompt_template.format(user_name=user_name, user_id=user_id)
     except FileNotFoundError:
         print(f"ERROR: System prompt file not found at {SYSTEM_PROMPT_FILE}. Using default prompt.")
         return "You are a helpful AI companion named Kinecho." # Fallback default prompt
     except KeyError as e:
-        print(f"ERROR: Missing placeholder in system prompt file: {e}. Check system_prompt.txt for {{user_name}}.")
+        print(f"ERROR: Missing placeholder in system prompt file: {e}. Check system_prompt.txt for {{user_name}} or {{user_id}}.")
         return "You are a helpful AI companion named Kinecho." # Fallback if formatting fails (e.g., missing {user_name} placeholder)
     except Exception as e: # Catch any other unexpected errors during prompt loading
         print(f"ERROR: Unexpected error loading system prompt: {e}")
         traceback.print_exc()
         return "You are a helpful AI companion named Kinecho."
 
-def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface_type: str):
+async def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface_type: str, available_tools: List[Dict[str, Any]] = None, interface_instances: Dict[str, Any] = None):
     """
     Generates a chat response using OpenAI's API.
-    For now, this function will respond without conversational memory.
+    Now supports tool calling.
     """
-#    print(f"DEBUG: get_chat_response received: user_id={user_id}, prompt='{prompt_text}', channel_id={channel_id}, interface_type={interface_type}")
+    if available_tools is None:
+        available_tools = [] # Ensure available_tools is always a list
+    if interface_instances is None:
+        interface_instances = {} # Ensure interface_instances is always a dictionary
 
     memory = {}
 
     try:
         memory = memory_manager.load_memory() # Load the overall memory structure
-#        print("DEBUG: Memory loaded successfully.")
     except Exception as e:
         print(f"ERROR: Failed to load memory: {e}")
         traceback.print_exc()
@@ -72,7 +79,6 @@ def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface
     system_prompt_content = "You are a helpful AI companion named Kinecho." # Default in case of loading failure
     try:
         system_prompt_content = load_system_prompt(user_name)
-#        print("DEBUG: System prompt content prepared.")
     except Exception as e:
         print(f"ERROR: Failed to prepare system prompt content: {e}")
         traceback.print_exc()
@@ -84,17 +90,8 @@ def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface
         },
     ]
 
-    # Build the conversation history from user_events for the current channel.
-    # We iterate through events, format them, and add them to 'messages'.
-    # The last 'message_in' event in memory corresponds to the 'prompt_text'
-    # we're currently processing. We *don't* add it to the history list here
-    # because 'prompt_text' will be added explicitly as the last message.
-    # This prevents duplicating the current user message in the context.
-
     # Find the index of the current 'message_in' event in the user_events list.
-    # This is a robust way to ensure we don't include the current message in the history.
     current_message_event_index = -1
-    # Iterate backwards to find the most recent matching user message for this channel
     for i in range(len(user_events) - 1, -1, -1):
         event = user_events[i]
         if (event["channel_id"] == channel_id and
@@ -114,22 +111,125 @@ def get_chat_response(user_id: str, prompt_text: str, channel_id: str, interface
                 messages.append({"role": "user", "content": event["content"]})
             elif event["type"] == "message_out":
                 messages.append({"role": "assistant", "content": event["content"]})
+            # Add tool_calls and tool messages if they exist in the history
+            elif event["type"] == "tool_call_request":
+                # Reconstruct tool_calls from the stored content
+                tool_calls_list = json.loads(event["content"])
+                messages.append({"role": "assistant", "tool_calls": tool_calls_list})
+            elif event["type"] == "tool_output":
+                # Reconstruct tool_output from the stored content
+                tool_output = json.loads(event["content"])
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_output["tool_call_id"],
+                    "content": json.dumps(tool_output["content"]) # Tool content must be a string
+                })
+
 
     # Finally, add the current user prompt to the messages list
     messages.append({"role": "user", "content": prompt_text})
 
     print(f"DEBUG: Messages sent to OpenAI API: {messages}")
+    print(f"DEBUG: Available tools to OpenAI API: {available_tools}")
 
     try:
-        selected_model = "gpt-3.5-turbo" # Will be updated to a more powerful model in the future
+        selected_model = "gpt-3.5-turbo"
 
-        completion = client.chat.completions.create(
+        # First API call: Potentially get a tool call from the model
+        response = client.chat.completions.create(
             model=selected_model,
-            messages=messages
+            messages=messages,
+            tools=available_tools, # Pass the defined tools to the model
+            tool_choice="auto" # Allow the model to decide whether to call a tool
         )
-#        print("DEBUG: Successfully received response from OpenAI API.")
-        response_content = completion.choices[0].message.content
-        return response_content
+
+        response_message = response.choices[0].message
+        tool_calls = response_message.tool_calls
+
+        # --- Tool Calling Logic ---
+        if tool_calls:
+            print("DEBUG: Model requested a tool call.")
+            # Add the tool_call request to memory for the current user and channel
+            # Store the tool_calls as a JSON string
+            tool_calls_content = json.dumps([tc.model_dump() for tc in tool_calls])
+            memory_manager.add_user_event(memory, user_id, "tool_call_request", channel_id, tool_calls_content, interface_type)
+            memory_manager.save_memory(memory)
+
+            # Extend conversation with assistant's reply (tool call request)
+            messages.append(response_message)
+
+            # Iterate over tool calls and execute them
+            # Iterate over tool calls and execute them
+            for tool_call in tool_calls:
+                function_name = tool_call.function.name
+                function_args = json.loads(tool_call.function.arguments)
+                tool_output = {} # Initialize tool_output for this specific tool call
+
+                print(f"DEBUG: Attempting to call tool: {function_name} with args: {function_args}")
+
+                # Check if the tool is get_discord_user_status
+                if function_name == "get_discord_user_status":
+                    # Ensure the discord interface is available
+                    discord_int = interface_instances.get("discord")
+                    if discord_int:
+                        # Get the user_id the model *suggested* in its tool arguments
+                        model_suggested_user_id = function_args.get("user_id")
+
+                        # IMPORTANT: Define the bot's own Discord ID.
+                        # This should ideally come from an environment variable or bot object,
+                        # but for this specific fix, using the ID mentioned in your system prompt.
+                        BOT_DISCORD_ID = "1372412067923103855" #
+
+                        # Determine the actual user_id to use for the tool lookup.
+                        # If the model suggested its own ID, or didn't suggest any ID,
+                        # use the actual conversational user_id (`user_id` parameter of get_chat_response).
+                        # Otherwise, use the ID the model explicitly provided (for looking up other users).
+                        if model_suggested_user_id == BOT_DISCORD_ID or not model_suggested_user_id:
+                            actual_lookup_id = user_id # Use the user_id from the current conversation
+                            print(f"DEBUG: Model attempted to use bot's ID or no ID. Overriding with current user_id: {actual_lookup_id}")
+                        else:
+                            actual_lookup_id = model_suggested_user_id # Use the ID the model provided (for other users)
+                            print(f"DEBUG: Model provided specific user_id for tool call: {actual_lookup_id}")
+
+                        # Call the tool function with the determined user ID
+                        tool_output["content"] = discord_int.get_discord_user_status(user_id=actual_lookup_id)
+                        tool_output["tool_call_id"] = tool_call.id # Store the tool_call.id
+                        print(f"DEBUG: get_discord_user_status tool output: {tool_output['content']}")
+                    else:
+                        tool_output["content"] = {"error": "Discord interface not active or available."}
+                        tool_output["tool_call_id"] = tool_call.id
+                        print("ERROR: Discord interface not available for get_discord_user_status call.")
+                else:
+                    tool_output["content"] = {"error": f"Tool '{function_name}' not found."}
+                    tool_output["tool_call_id"] = tool_call.id
+                    print(f"ERROR: Tool '{function_name}' not recognized.")
+
+                # Add the tool output to memory
+                memory_manager.add_user_event(memory, user_id, "tool_output", channel_id, json.dumps(tool_output), interface_type)
+                memory_manager.save_memory(memory)
+
+                # Add tool response to messages for the next API call
+                messages.append(
+                    {
+                        "tool_call_id": tool_output["tool_call_id"],
+                        "role": "tool",
+                        "content": json.dumps(tool_output["content"]) # Tool content must be a string
+                    }
+                )
+
+            # Second API call: Get the model's response after tool execution
+            print("DEBUG: Making second API call with tool output...")
+            second_response = client.chat.completions.create(
+                model=selected_model,
+                messages=messages
+            )
+            final_response_content = second_response.choices[0].message.content
+            return final_response_content
+
+        else:
+            # If no tool call, return the direct response content
+            return response_message.content
+
     except Exception as e:
         print(f"Error getting chat response from OpenAI: {e}")
         traceback.print_exc()
@@ -145,33 +245,33 @@ def listen_for_command():
             print("Audio captured.")
             return audio
         except sr.WaitTimeoutError:
-            print("No speech detected.") # In case I become Silent Sally
+            print("No speech detected.")
             return ""
         except sr.RequestError as e:
-            print(f"Could not request results; {e}") # In case the API fails
+            print(f"Could not request results; {e}")
             return ""
         except sr.UnknownValueError:
-            print("Could not understand audio") # In case I'm too garbled
+            print("Could not understand audio")
             return ""
         except Exception as e:
-            print(f"Error during listening: {e}") # For literally everything else
+            print(f"Error during listening: {e}")
             return ""
 
 def transcribe_audio(audio):
     if audio:
         r = sr.Recognizer()
         try:
-            text = r.recognize_google(audio) # Using Google Speech Recognition
+            text = r.recognize_google(audio)
             print(f"You said: {text}")
             return text
         except sr.UnknownValueError:
-            print(f"Could not understand audio") # Again, in case I'm too garbled
+            print(f"Could not understand audio")
             return None
         except sr.RequestError as e:
-            print(f"Could not request results; {e}") # Again, in case the API fails
+            print(f"Could not request results; {e}")
             return None
         except Exception as e:
-            print(f"Error during transcription: {e}") # Again, for literally everything else
+            print(f"Error during transcription: {e}")
             return None
     return None
 
@@ -219,5 +319,5 @@ def switch_method(method_type, valid_options, settings):
         settings[method_type]['method'] = new_method
         return new_method
     else:
-        print(f"Invalid {method_type} method.") # For if I fatfinger my keyboard or forget what options I set like a moron
+        print(f"Invalid {method_type} method.")
         return None

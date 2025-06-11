@@ -12,18 +12,64 @@ load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") # This isn't directly used in main, but good practice to be safe
 
+# Global variable to hold active interface instances, needed for tool calling
+# We initialize them as None, and they will be set in main()
+global_discord_interface: DiscordInterface = None
+global_console_interface: ConsoleInterface = None
+
+
+# --- Define Tools Available to the Chatbot ---
+# This is a list of dictionaries, where each dictionary describes a tool.
+# The structure follows OpenAI's tool definition format.
+AVAILABLE_TOOLS_DEFINITIONS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_discord_user_status",
+            "description": "Retrieves the online status, custom status, display name, username, joined date, and shared guild of a Discord user by their user ID. This works only if the bot is in a shared server with the user and has the necessary permissions.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "description": "The unique Discord ID of the user whose status is to be retrieved. This is a numeric string (e.g., '212343502422540288')."
+                    }
+                },
+                "required": ["user_id"]
+            }
+        }
+    }
+    # Add more tool definitions here as you create new tools
+]
+
 # --- Chatbot Processor Function ---
-def kinecho_chatbot_processor(user_id: str, user_message: str, channel_id: str, interface_type: str) -> str:
+# This function now takes an additional parameter for the interface instances
+async def kinecho_chatbot_processor(user_id: str, user_message: str, channel_id: str, interface_type: str, interface_instances: Dict[str, Any]) -> str:
     """
-    Processes a user message using the core chatbot logic.
+    Processes a user message using the core chatbot logic, with access to available interfaces.
     This function is passed to each interface.
+
+    Args:
+        user_id (str): The ID of the user sending the message.
+        user_message (str): The content of the user's message.
+        channel_id (str): The ID of the channel where the message originated.
+        interface_type (str): The type of interface (e.g., "discord", "console").
+        interface_instances (Dict[str, Any]): A dictionary of active interface instances (e.g., {"discord": DiscordInterface_instance}).
+
+    Returns:
+        str: The chatbot's response message.
     """
     print(f"DEBUG: kinecho_chatbot_processor received: user_id={user_id}, message='{user_message}', channel_id={channel_id}, interface_type={interface_type}")
-    response = chatbot.get_chat_response(
+    
+    # Pass the available tools and the interface instances to the chatbot's get_chat_response
+    # !!! FIX: AWAIT THE ASYNC FUNCTION CALL !!!
+    response = await chatbot.get_chat_response(
         user_id=user_id,
-        prompt_text=user_message, # Renamed query to user_message for clarity
+        prompt_text=user_message,
         channel_id=channel_id,
-        interface_type=interface_type
+        interface_type=interface_type,
+        available_tools=AVAILABLE_TOOLS_DEFINITIONS, # Pass the defined tools
+        interface_instances=interface_instances      # Pass the interface instances
     )
     return response
 
@@ -34,12 +80,17 @@ async def main():
     print("Kinecho Main: Initializing Kinecho Commander...")
 
     # Initialize interface instances (don't start them yet)
-    discord_interface = DiscordInterface(
-        chatbot_processor_func=kinecho_chatbot_processor,
+    # Assign them to the global variables
+    global global_discord_interface
+    global global_console_interface
+
+    # FIX: The lambda functions must also be async if they're calling an async function
+    global_discord_interface = DiscordInterface(
+        chatbot_processor_func=lambda u, m, c, i: kinecho_chatbot_processor(u, m, c, i, {"discord": global_discord_interface, "console": global_console_interface}),
         intents=intents
     )
-    console_interface = ConsoleInterface(
-        chatbot_processor_func=kinecho_chatbot_processor
+    global_console_interface = ConsoleInterface(
+        chatbot_processor_func=lambda u, m, c, i: kinecho_chatbot_processor(u, m, c, i, {"discord": global_discord_interface, "console": global_console_interface})
     )
 
     # Dictionary to hold active interface tasks
@@ -54,7 +105,7 @@ async def main():
         prompt_text = "Kinecho Commander > "
         # Check if console interface is currently running AND expecting chat input
         # console_interface.is_running is set by its initialize_interface and stop methods
-        if "console" in active_interface_tasks and not active_interface_tasks["console"].done() and console_interface.is_running:
+        if "console" in active_interface_tasks and not active_interface_tasks["console"].done() and global_console_interface.is_running:
             prompt_text = "You (Kinecho Console) > "
 
         # Read user input using asyncio.to_thread to prevent blocking the event loop
@@ -71,14 +122,14 @@ async def main():
             if target_interface == "discord":
                 if "discord" not in active_interface_tasks or active_interface_tasks["discord"].done():
                     print("Kinecho Commander: Starting Discord Interface...")
-                    discord_task = asyncio.create_task(discord_interface.initialize_interface(DISCORD_BOT_TOKEN))
+                    discord_task = asyncio.create_task(global_discord_interface.initialize_interface(DISCORD_BOT_TOKEN))
                     active_interface_tasks["discord"] = discord_task
                 else:
                     print("Kinecho Commander: Discord Interface already running.")
             elif target_interface == "console":
                 if "console" not in active_interface_tasks or active_interface_tasks["console"].done():
                     print("Kinecho Commander: Starting Console Interface...")
-                    console_task = asyncio.create_task(console_interface.initialize_interface())
+                    console_task = asyncio.create_task(global_console_interface.initialize_interface())
                     active_interface_tasks["console"] = console_task
                     await asyncio.sleep(0.01)
                     continue
@@ -91,8 +142,8 @@ async def main():
             if target_interface == "discord":
                 if "discord" in active_interface_tasks and not active_interface_tasks["discord"].done():
                     print("Kinecho Commander: Stopping Discord Interface...")
-                    discord_interface.is_running = False # Signal to the bot to stop
-                    await discord_interface.close() # Calls discord.Client's internal close
+                    global_discord_interface.is_running = False # Signal to the bot to stop
+                    await global_discord_interface.close() # Calls discord.Client's internal close
                     await active_interface_tasks["discord"] # Wait for the task to finish
                     del active_interface_tasks["discord"]
                 else:
@@ -100,7 +151,7 @@ async def main():
             elif target_interface == "console":
                 if "console" in active_interface_tasks and not active_interface_tasks["console"].done():
                     print("Kinecho Commander: Stopping Console Interface...")
-                    await console_interface.stop() # This will set is_running=False and _quit_event
+                    await global_console_interface.stop() # This will set is_running=False and _quit_event
                     await active_interface_tasks["console"] # Wait for initialize_interface task to finish
                     del active_interface_tasks["console"]
                 else:
@@ -122,14 +173,14 @@ async def main():
             for interface_name, task in list(active_interface_tasks.items()):
                 print(f"Kinecho Commander: Attempting to stop {interface_name} interface.")
                 if interface_name == "discord":
-                    if discord_interface:
+                    if global_discord_interface:
                         # Signal discord bot to stop and add its close method to shutdown tasks
-                        discord_interface.is_running = False
-                        shutdown_tasks.append(asyncio.create_task(discord_interface.close()))
+                        global_discord_interface.is_running = False
+                        shutdown_tasks.append(asyncio.create_task(global_discord_interface.close()))
                 elif interface_name == "console":
-                    if console_interface:
+                    if global_console_interface:
                         # Signal console interface to stop and add its stop method to shutdown tasks
-                        shutdown_tasks.append(asyncio.create_task(console_interface.stop()))
+                        shutdown_tasks.append(asyncio.create_task(global_console_interface.stop()))
             
             # Wait for all explicit interface shutdown calls to complete
             if shutdown_tasks:
@@ -166,7 +217,8 @@ async def main():
                 'channel': type('MockChannel', (object,), {'id': channel_id})
             })()
             try:
-                await console_interface.receive_message(mock_message)
+                # !!! FIX: AWAIT THE ASYNC FUNCTION CALL !!!
+                await global_console_interface.receive_message(mock_message)
             except Exception as e:
                 print(f"ERROR: Console interface message processing failed: {e}")
             # No 'continue' needed here. The loop will naturally re-evaluate the prompt.

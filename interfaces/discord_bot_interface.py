@@ -144,7 +144,7 @@ class DiscordInterface(KinechoInterface, discord.Client):
             # --- Get response from Chatbot Processor ---
             print(f"DEBUG: Calling chatbot_processor with query: '{query}' for user {user_id} in channel {channel_id}")
             # Update this line to pass user_id, query, channel_id, and interface_type
-            response_content = self.chatbot_processor(
+            response_content = await self.chatbot_processor(
                 user_id,         # User ID from Discord
                 query,    # Cleaned user message
                 channel_id,      # Channel ID from Discord
@@ -205,3 +205,60 @@ class DiscordInterface(KinechoInterface, discord.Client):
         self.is_running = False # Set the running flag to False
         await super().close() # Call the parent discord.Client's close method
         print("Discord Interface: Connection closed successfully.")
+
+    # --- New Tool Function: get_discord_user_status ---
+    def get_discord_user_status(self, user_id: str) -> Dict[str, Any]:
+        """
+        Retrieves the status and profile information of a Discord user from the bot's cache.
+        Discord's API does not allow direct status lookup; this relies on the bot's presence
+        in guilds and its cached member list.
+
+        Args:
+            user_id (str): The Discord ID of the user to look up.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing user information, or an error message
+                            if the user is not found or not in a shared guild.
+                            Example:
+                            {
+                                "display_name": "Lily Aviarn",
+                                "username": "thedragonsong",
+                                "status": "Do Not Disturb",
+                                "custom_status": "BARK BARK BARK BARK...",
+                                "joined_at": "May 22, 2025",
+                                "guild": "Project Kinecho"
+                            }
+        """
+        # Convert user_id to integer for discord.py methods
+        try:
+            member_id = int(user_id)
+        except ValueError:
+            return {"error": "Invalid user ID provided. Please provide a numeric Discord user ID."}
+
+        # Iterate through all guilds the bot is a member of
+        for guild in self.guilds:
+            # Try to get the member from the guild's cache
+            member = guild.get_member(member_id)
+            if member:
+                # User found! Now extract the details.
+                status_info = {
+                    "display_name": member.display_name,
+                    "username": member.name,
+                    "status": str(member.status).replace("Status.", ""), # Convert enum to string
+                    "custom_status": None, # Default to None
+                    "joined_at": member.joined_at.strftime("%B %d, %Y") if member.joined_at else "N/A",
+                    "guild": guild.name
+                }
+
+                # Check for custom status activity
+                # Activities can be discord.Game, discord.Streaming, discord.Activity, etc.
+                for activity in member.activities:
+                    if isinstance(activity, discord.CustomActivity):
+                        status_info["custom_status"] = activity.name
+                        break # Found custom status, no need to check other activities
+
+                return status_info
+
+        # If the loop finishes, the user was not found in any shared guild's cache
+        return {"error": f"User with ID '{user_id}' not found in any shared Discord server's cache. The bot might not share a server with them, or they are offline and not cached."}
+

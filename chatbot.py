@@ -245,6 +245,18 @@ async def get_chat_response(user_id: str, prompt_text: str, channel_id: str, int
                         }
                     tool_output["tool_call_id"] = tool_call.id
                     print(f"DEBUG: get_current_time tool output: {tool_output['content']}")
+                
+                elif function_name == "get_conversation_history_for_channel":
+                    channel_id_arg = function_args.get("channel_id")
+                    limit_arg = function_args.get("limit", 10) # Default to 10 if not provided by model
+
+                    if channel_id_arg:
+                        # Call the function from memory_manager.
+                        tool_output["content"] = memory_manager.get_conversation_history_for_channel(channel_id_arg, limit_arg)
+                    else:
+                        tool_output["content"] = {"error": "Channel ID is required to get conversation history."}
+                    tool_output["tool_call_id"] = tool_call.id
+                    print(f"DEBUG: get_conversation_history_for_channel tool output: {tool_output['content']}")
 
                 # Add the tool output to memory
                 memory_manager.add_user_event(memory, user_id, "tool_output", channel_id, json.dumps(tool_output), interface_type)

@@ -39,7 +39,7 @@ AVAILABLE_TOOLS_DEFINITIONS = [
             }
         }
     },
-    { # NEW TOOL DEFINITION: get_current_time
+    {
         "type": "function",
         "function": {
             "name": "get_current_time",
@@ -53,6 +53,28 @@ AVAILABLE_TOOLS_DEFINITIONS = [
                     }
                 },
                 "required": [] # timezone_str is optional
+            }
+        }
+    }
+    {
+        "type": "function",
+        "function": {
+            "name": "get_conversation_history_for_channel",
+            "description": "Retrieves recent conversation history (messages) from a specific Discord channel. Useful for recalling what was discussed in other channels.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "channel_id": {
+                        "type": "string",
+                        "description": "The Discord ID of the channel whose conversation history is to be retrieved. This is a numeric string (e.g., '123456789012345678')."
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "The maximum number of recent messages to retrieve (default: 10).",
+                        "default": 10
+                    }
+                },
+                "required": ["channel_id"]
             }
         }
     }

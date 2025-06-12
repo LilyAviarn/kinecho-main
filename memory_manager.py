@@ -102,3 +102,23 @@ def update_channel_memory(memory, channel_id, new_data):
     if len(memory[channel_key]) > 20:  # Keep a maximum of 20 entries
         memory[channel_key] = memory[channel_key][-20:]
     save_memory(memory)
+
+def get_conversation_history_for_channel(channel_id: str, limit: int = 10) -> List[Dict[str, str]]:
+    """
+    Retrieves a limited number of recent messages from a specific channel's memory.
+    Args:
+        channel_id: The Discord ID of the channel whose conversation history is to be retrieved.
+        limit: The maximum number of recent messages to retrieve.
+    Returns:
+        A list of dictionaries, each representing a message (role, content).
+    """
+    memory = load_memory() # Load the full memory
+    
+    # Ensure channel_id is treated as a string key, as it's stored in memory.
+    # Handles both direct channel IDs and the DM_KEY if applicable.
+    channel_key = str(channel_id) if channel_id is not None else DM_KEY
+
+    history = memory.get(channel_key, [])
+
+    # Return the last 'limit' messages (most recent)
+    return history[-limit:]

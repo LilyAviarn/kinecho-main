@@ -38,8 +38,25 @@ AVAILABLE_TOOLS_DEFINITIONS = [
                 "required": ["user_id"]
             }
         }
+    },
+    { # NEW TOOL DEFINITION: get_current_time
+        "type": "function",
+        "function": {
+            "name": "get_current_time",
+            "description": "Provides the current date, time, and day of the week for a specified timezone. If no timezone is provided, it defaults to 'America/New_York' (Eastern Standard Time).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "timezone_str": {
+                        "type": "string",
+                        "description": "The IANA timezone string (e.g., 'America/New_York', 'Europe/London'). This argument is optional."
+                    }
+                },
+                "required": [] # timezone_str is optional
+            }
+        }
     }
-    # Add more tool definitions here as you create new tools
+    # Add any other tool definitions here if you have them
 ]
 
 # --- Chatbot Processor Function ---

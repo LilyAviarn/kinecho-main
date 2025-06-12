@@ -5,6 +5,8 @@ import pyttsx3
 import configparser
 import memory_manager
 import traceback
+import datetime
+import pytz
 import json # Added for parsing tool call arguments
 import asyncio # Added for awaiting tool calls
 from typing import Any, Callable, List, Dict # Added Dict for tool definitions
@@ -31,6 +33,27 @@ def process_chatbot_message(message: str) -> str:
     print("WARNING: process_chatbot_message called without interface_instances. Tool calls will not be supported.")
     response = get_chat_response(prompt_text=message, history=None, channel_id="test_channel_from_app_main")
     return response
+
+def get_current_time(timezone_str: str = 'America/New_York') -> Dict[str, str]:
+    """
+    Retrieves the current date and time in a specified timezone.
+    Defaults to Eastern Time (America/New_York) if no timezone is provided.
+    """
+    try:
+        tz = pytz.timezone(timezone_str)
+        now = datetime.datetime.now(tz)
+        unix_timestamp = int(now.timestamp())
+        return {
+            "unix_timestamp": unix_timestamp,
+            "display_time_for_model": now.strftime("%I:%M:%S %p %Z%z"),
+            "current_date": now.strftime("%Y-%m-%d"),
+            "day_of_week": now.strftime("%A"),
+            "timezone": timezone_str
+        }
+    except pytz.UnknownTimeZoneError:
+        return {"error": f"Unknown timezone: {timezone_str}. Please provide a valid IANA timezone name (e.g., 'America/New_York', 'Europe/London')."}
+    except Exception as e:
+        return {"error": f"Failed to get current time: {e}"}
 
 def load_system_prompt(user_name: str, user_id: str) -> str:
     try:
@@ -199,10 +222,29 @@ async def get_chat_response(user_id: str, prompt_text: str, channel_id: str, int
                         tool_output["content"] = {"error": "Discord interface not active or available."}
                         tool_output["tool_call_id"] = tool_call.id
                         print("ERROR: Discord interface not available for get_discord_user_status call.")
-                else:
-                    tool_output["content"] = {"error": f"Tool '{function_name}' not found."}
+                
+                elif function_name == "get_current_time":
+                    timezone_arg = function_args.get("timezone_str")
+                    if timezone_arg:
+                        tool_result = get_current_time(timezone_arg)
+                    else:
+                        tool_result = get_current_time() # Call with default timezone
+
+                    if "error" in tool_result:
+                        tool_output["content"] = tool_result # Pass the error
+                    else:
+                        unix_ts = tool_result["unix_timestamp"]
+                        # Use Discord markdown timestamp for the response to the user.
+                        # ':F' displays full date and time. Other options: :t, :T, :d, :D, :f, :R
+                        discord_timestamp_markdown = f"<t:{unix_ts}:F>"
+
+                        # Provide both a user-facing string and the raw data to the model
+                        tool_output["content"] = {
+                            "response_for_user": f"The time requested is: {discord_timestamp_markdown}",
+                            "raw_time_data": tool_result # Provide raw data for the model's context if it needs to reason about the time itself
+                        }
                     tool_output["tool_call_id"] = tool_call.id
-                    print(f"ERROR: Tool '{function_name}' not recognized.")
+                    print(f"DEBUG: get_current_time tool output: {tool_output['content']}")
 
                 # Add the tool output to memory
                 memory_manager.add_user_event(memory, user_id, "tool_output", channel_id, json.dumps(tool_output), interface_type)

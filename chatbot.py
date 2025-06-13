@@ -257,6 +257,30 @@ async def get_chat_response(user_id: str, prompt_text: str, channel_id: str, int
                         tool_output["content"] = {"error": "Channel ID is required to get conversation history."}
                     tool_output["tool_call_id"] = tool_call.id
                     print(f"DEBUG: get_conversation_history_for_channel tool output: {tool_output['content']}")
+                
+                elif function_name == "add_user_derived_fact":
+                    user_id_arg = function_args.get("user_id")
+                    fact_content_arg = function_args.get("fact_content")
+                    channel_id_arg = function_args.get("channel_id") # Optional
+
+                    if user_id_arg and fact_content_arg:
+                        memory_manager.add_derived_fact_to_user(user_id_arg, fact_content_arg, channel_id_arg)
+                        tool_output["content"] = {"status": "success", "message": "Derived fact added."}
+                    else:
+                        tool_output["content"] = {"error": "User ID and fact content are required to add a derived fact."}
+                    tool_output["tool_call_id"] = tool_call.id
+                    print(f"DEBUG: add_user_derived_fact tool output: {tool_output['content']}")
+
+                elif function_name == "get_user_derived_facts":
+                    user_id_arg = function_args.get("user_id")
+                    limit_arg = function_args.get("limit", 10)
+
+                    if user_id_arg:
+                        tool_output["content"] = memory_manager.get_derived_facts_for_user(user_id_arg, limit_arg)
+                    else:
+                        tool_output["content"] = {"error": "User ID is required to retrieve derived facts."}
+                    tool_output["tool_call_id"] = tool_call.id
+                    print(f"DEBUG: get_user_derived_facts tool output: {tool_output['content']}")
 
                 # Add the tool output to memory
                 memory_manager.add_user_event(memory, user_id, "tool_output", channel_id, json.dumps(tool_output), interface_type)

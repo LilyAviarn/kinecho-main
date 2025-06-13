@@ -103,6 +103,50 @@ def update_channel_memory(memory, channel_id, new_data):
         memory[channel_key] = memory[channel_key][-20:]
     save_memory(memory)
 
+def add_derived_fact_to_user(user_id: str, fact_content: str, channel_id: str = None, source: str = "llm_derivation"):
+    """
+    Adds a new derived fact to a user's memory.
+    The fact is stored as an object including timestamp, content, and source.
+    Args:
+        user_id: The ID of the Discord user.
+        fact_content: The content of the derived fact (a string).
+        channel_id: The channel ID related to the fact, if any (optional).
+        source: The source of the derivation (default: "llm_derivation").
+    """
+    memory = load_memory()
+    user_data = memory.get("users", {}).get(user_id)
+    if user_data:
+        if "derived_facts" not in user_data:
+            user_data["derived_facts"] = []
+
+        fact_entry = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "content": fact_content,
+            "channel_id": channel_id,
+            "source": source
+        }
+        user_data["derived_facts"].append(fact_entry)
+        save_memory(memory) # Save memory after adding the fact
+    else:
+        print(f"WARNING: Attempted to add derived fact for non-existent user ID: {user_id}")
+
+def get_derived_facts_for_user(user_id: str, limit: int = 10) -> List[str]:
+    """
+    Retrieves a limited number of recent derived facts associated with a specific user.
+    Returns only the 'content' string of each fact for easy consumption by the LLM.
+    Args:
+        user_id: The ID of the Discord user.
+        limit: The maximum number of recent facts to retrieve.
+    Returns:
+        A list of strings, each representing the content of a derived fact.
+    """
+    memory = load_memory()
+    user_data = memory.get("users", {}).get(user_id, {})
+    facts = user_data.get("derived_facts", [])
+
+    # Return only the 'content' string from the last 'limit' fact entries
+    return [fact["content"] for fact in facts[-limit:]]
+
 def get_conversation_history_for_channel(channel_id: str, limit: int = 10) -> List[Dict[str, str]]:
     """
     Retrieves a limited number of recent messages from a specific channel's memory.

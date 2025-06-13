@@ -78,6 +78,53 @@ AVAILABLE_TOOLS_DEFINITIONS = [
             }
         }
     }
+    {
+        "type": "function",
+        "function": {
+            "name": "add_user_derived_fact",
+            "description": "Adds a new high-level, summarized fact or insight about a specific Discord user to Kinecho's long-term memory. This should be used when Kinecho learns a significant piece of information about a user (e.g., their hobby, a personal preference, a recurring statement).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "description": "The Discord ID of the user to whom the fact pertains."
+                    },
+                    "fact_content": {
+                        "type": "string",
+                        "description": "The content of the derived fact to be stored."
+                    },
+                    "channel_id": {
+                        "type": "string",
+                        "description": "Optional: The Discord ID of the channel where the fact was derived or is relevant."
+                    }
+                },
+                "required": ["user_id", "fact_content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_user_derived_facts",
+            "description": "Retrieves high-level, summarized facts or insights about a specific Discord user that Kinecho has learned over time.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "description": "The Discord ID of the user whose derived facts are to be retrieved."
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "The maximum number of recent derived facts to retrieve (default: 10).",
+                        "default": 10
+                    }
+                },
+                "required": ["user_id"]
+            }
+        }
+    }
     # Add any other tool definitions here if you have them
 ]
 

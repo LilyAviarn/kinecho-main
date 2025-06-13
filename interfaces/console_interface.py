@@ -5,9 +5,13 @@ import memory_manager
 import chatbot
 
 class ConsoleInterface(KinechoInterface):
-    def __init__(self, *, chatbot_processor_func: Callable[[str, List[Dict[str, str]], str], str]):
+    # Updated __init__ to accept interface_instances and match new chatbot_processor_func signature
+    def __init__(self, *,
+                 chatbot_processor_func: Callable[[str, str, str, str, str, Dict[str, Any]], str], # Updated Callable
+                 interface_instances: Dict[str, Any]): # NEW: Add interface_instances
         super().__init__(chatbot_processor_func=chatbot_processor_func)
         self._quit_event = asyncio.Event() # Event to signal when the console interface should quit
+        self.interface_instances = interface_instances # Store the reference to the dictionary
         print("Console Interface: Initialized.")
 
     async def initialize_interface(self):
@@ -15,79 +19,59 @@ class ConsoleInterface(KinechoInterface):
         Initializes the console interface.
         It sets up for input, but the main input loop will be in kinecho_main.py.
         """
-        # Clear the quit event at the start of initialization
-        # This ensures that if the console was stopped previously,
-        # the event is reset and initialize_interface will wait again.
         self._quit_event.clear()
         print("Console Interface: Ready for input. Type 'quit' to return to Commander.")
         self.is_running = True
-        # This interface itself doesn't loop for input, it blocks and waits to be told to stop.
-        # It will process messages via process_incoming_text when the commander forwards them.
-        await self._quit_event.wait() # Wait until the stop() method sets this event
+        await self._quit_event.wait()
         print("Console Interface: Shutting down.")
-
 
     async def send_message(self, channel_id: str, message_content: str):
         """
-        Sends a message to the console. channel_id is not strictly used for console output,
-        but kept for API consistency.
+        Sends a message to the console.
         """
         print(f"Kinecho: {message_content}")
 
-    # This method explicitly implements the abstract method 'receive_message' from KinechoInterface.
-    # It contains the core logic for processing incoming console messages.
-    async def receive_message(self, message: str):
-        """
-        Processes an incoming message string from the console.
-        This method will be called by the Kinecho Commander.
-        """
-        user_message = message.content.strip()
+    # Renamed and updated receive_message to conform to KinechoInterface's signature (message: Any)
+    # and pass new arguments to chatbot_processor
+    async def receive_message(self, message: Any): # Now accepts a 'message' object
+        # For console, we'll use predefined IDs/names or extract from a mock object
+        user_id = message.author.id
+        user_name = message.author.display_name
+        channel_id = message.channel.id
+        query = message.content # Extract content from the mock message
 
-        if not self.is_running:
-            # Should not happen if commander is correctly managing tasks
-            print(f"ERROR: Message ignored: Console Interface is not flagged as running by Commander. ({user_message})")
-            return
+        # For console, guild_id is always None
+        guild_id = None
 
-        if user_message.lower() == 'quit':
-            await self.stop() # Signal graceful shutdown
-            return
+        print(f"DEBUG: Message from {user_name} ({user_id}) in channel {channel_id} (Guild: {guild_id}): {query}")
 
-        print(f"You: {user_message}") # Echo user's message to confirm input
-
-        # --- New Memory Handling for Console ---
-        # Define console user ID and channel ID. These are fixed for the console.
-        console_user_id = "212343502422540288"
-        console_user_name = "Lily"
-        console_channel_id = "kinecho_console_chat" # Still use this for channel context in events
-
-        # Load memory and ensure the console user exists in memory
+        # Load memory for the console user and channel
         memory = memory_manager.load_memory()
-        memory_manager.create_or_get_user(memory, console_user_id, console_user_name, "console")
+        # Create or get user for console context
+        memory_manager.create_or_get_user(memory, user_id, user_name, "console", discord_id=None)
 
-        # Add user's message as an event BEFORE calling the chatbot
-        memory_manager.add_user_event(memory, console_user_id, "message_in", console_channel_id, user_message, "console")
-        memory_manager.save_memory(memory) # Save immediately after user message event
-#        print("DEBUG: Console user message event added and memory saved.")
+        # Add user's message as an event
+        memory_manager.add_user_event(memory, user_id, "message_in", channel_id, query, "console")
+        memory_manager.update_channel_memory(memory, channel_id, [{"role": "user", "content": query}])
+        memory_manager.save_memory(memory)
 
         # --- Get response from Chatbot Processor ---
-
-#        print(f"DEBUG: Calling chatbot_processor with query: '{user_message}'")
-        response_content = self.chatbot_processor(
-            console_user_id,    # This variable should be available from earlier in the method
-            user_message,
-            console_channel_id, # This variable should be available from earlier in the method
-            "console"           # Explicitly state the interface type
+        response_content = await self.chatbot_processor( # AWAIT the async function call
+            query,
+            user_id,
+            user_name,
+            channel_id,
+            guild_id, # <-- Pass guild_id (None for console)
+            self.interface_instances # <-- Pass the interface_instances
         )
 
         # --- Send Response and Update Memory ---
-        await self.send_message(console_channel_id, response_content)
-#        print("DEBUG: Console Interface: Sent response.")
+        await self.send_message(channel_id, response_content)
 
         # Add bot's response as an event
-        memory_manager.add_user_event(memory, console_user_id, "message_out", console_channel_id, response_content, "console")
-        memory_manager.save_memory(memory) # Save after bot response event
-#        print("DEBUG: Console bot response event added and memory saved.")
-
+        memory_manager.add_user_event(memory, user_id, "message_out", channel_id, response_content, "console")
+        memory_manager.update_channel_memory(memory, channel_id, [{"role": "assistant", "content": response_content}])
+        memory_manager.save_memory(memory)
 
     async def stop(self):
         """
@@ -95,5 +79,5 @@ class ConsoleInterface(KinechoInterface):
         Signals the initialize_interface task to finish.
         """
         self.is_running = False
-        self._quit_event.set() # Set the event to release initialize_interface.wait()
+        self._quit_event.set()
         print(f"Console Interface: {self.__class__.__name__} closed successfully.")

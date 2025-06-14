@@ -38,5 +38,6 @@ htmlcov/
 .mypy_cache/
 
 # Project-specific files
+Gemini-Storage/
 kinecho_memory.json
 kinecho_user_memory.json

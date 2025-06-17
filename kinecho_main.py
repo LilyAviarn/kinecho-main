@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Callable
 from interfaces.discord_bot_interface import DiscordInterface, intents
 from interfaces.console_interface import ConsoleInterface
 import chatbot
-import memory_manager
+import memory_manager # Import memory_manager
 
 load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -125,7 +125,7 @@ AVAILABLE_TOOLS_DEFINITIONS = [
             }
         }
     },
-    { # NEW TOOL DEFINITION: get_discord_channel_id_by_name
+    {
         "type": "function",
         "function": {
             "name": "get_discord_channel_id_by_name",
@@ -145,13 +145,29 @@ AVAILABLE_TOOLS_DEFINITIONS = [
                 "required": ["channel_name"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_kinecho_uptime",
+            "description": "Retrieves how long Kinecho has been running since its initial startup. This provides Kinecho with a concept of its own 'age' or 'uptime'.",
+            "parameters": {
+                "type": "object",
+                "properties": {}, # No parameters required for this tool
+                "required": []
+            }
+        }
     }
+    # New tools here
 ]
 
 async def main():
     global global_discord_interface, global_console_interface
 
     print("Kinecho Main: Starting Kinecho Commander...")
+
+    # Initialize Kinecho's internal clock/start time
+    memory_manager.initialize_kinecho_start_time()
 
     interface_instances: Dict[str, Any] = {}
 
@@ -172,7 +188,7 @@ async def main():
     console_task = None
 
     while True:
-        command_line = await asyncio.to_thread(input, "Kinecho Commander > ").strip()
+        command_line = (await asyncio.to_thread(input, "Kinecho Commander > ")).strip()
 
         if command_line.lower() == 'quit':
             print("Kinecho Commander: Initiating graceful shutdown...")

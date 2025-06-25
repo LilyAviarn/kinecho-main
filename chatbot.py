@@ -242,16 +242,6 @@ async def get_chat_response(
                     tool_result = {"error": "Channel name is required to get channel ID."}
                 tool_output["content"] = tool_result
 
-            elif function_name == "get_kinecho_uptime": # NEW TOOL CALL HANDLING
-                tool_result = memory_manager.get_kinecho_uptime()
-                if "error" in tool_result:
-                    tool_output["content"] = tool_result
-                else:
-                    tool_output["content"] = {
-                        "response_for_user": tool_result["human_readable_uptime"],
-                        "raw_uptime_data": tool_result
-                    }
-
             else:
                 tool_output["content"] = {"error": f"Unknown tool: {function_name}"}
 

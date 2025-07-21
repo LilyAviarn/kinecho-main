@@ -24,7 +24,8 @@ class DiscordInterface(KinechoInterface, discord.Client):
     def __init__(self, *,
                  chatbot_processor_func: Callable[[str, str, str, str, str, Dict[str, Any]], str],
                  intents: discord.Intents,
-                 interface_instances: Dict[str, Any]):
+                 interface_instances: Dict[str, Any],
+                 kinecho_memory: Dict[str, Any]):
         super().__init__(chatbot_processor_func=chatbot_processor_func)
         discord.Client.__init__(self, intents=intents)
         self.interface_instances = interface_instances
@@ -111,7 +112,7 @@ class DiscordInterface(KinechoInterface, discord.Client):
         
         print(f"DEBUG: Message from {user_name} ({user_id}) in channel {channel_id} (Guild: {guild_id}): {raw_query}")
         
-        memory = memory_manager.load_memory()
+        memory = self.kinecho_memory
         
         # Create or get the user's profile and save immediately
         discord_id = user_id if not is_dm else None # Store Discord ID if not a DM

@@ -16,6 +16,7 @@ class KinechoInterface(ABC):
         """
         self.chatbot_processor = chatbot_processor_func
         self.is_running = False
+        self.kinecho_memory = kinecho_memory
 
     @abstractmethod
     async def initialize_interface(self): # Change from "Start" to "initialize_interface"

@@ -47,7 +47,7 @@ class ConsoleInterface(KinechoInterface):
         print(f"DEBUG: Message from {user_name} ({user_id}) in channel {channel_id} (Guild: {guild_id}): {query}")
 
         # Load memory for the console user and channel
-        memory = memory_manager.load_memory()
+        memory = self.kinecho_memory
         # Create or get user for console context
         memory_manager.create_or_get_user(memory, user_id, user_name, "console", discord_id=None)
 

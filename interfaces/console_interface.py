@@ -7,8 +7,9 @@ import chatbot
 class ConsoleInterface(KinechoInterface):
     # Updated __init__ to accept interface_instances and match new chatbot_processor_func signature
     def __init__(self, *,
-                 chatbot_processor_func: Callable[[str, str, str, str, str, Dict[str, Any]], str], # Updated Callable
-                 interface_instances: Dict[str, Any]): # NEW: Add interface_instances
+                 chatbot_processor_func: Callable[[str, str, str, str, str, Dict[str, Any]], str],
+                 interface_instances: Dict[str, Any],
+                 kinecho_memory: Dict[str, Any]):
         super().__init__(chatbot_processor_func=chatbot_processor_func)
         self._quit_event = asyncio.Event() # Event to signal when the console interface should quit
         self.interface_instances = interface_instances # Store the reference to the dictionary

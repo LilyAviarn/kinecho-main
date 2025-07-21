@@ -7,7 +7,7 @@ class KinechoInterface(ABC):
     Defines the common methods that all interfaces must implement.
     """
 
-    def __init__(self, chatbot_processor_func: Callable[[str, Any, Any], str]):
+    def __init__(self, chatbot_processor_func: Callable[[str, str, str, str, str, Dict[str, Any]], str]):
         """
         Initializes the interface with a function to process chatbot messages.
         Args:

@@ -111,6 +111,18 @@ class DiscordInterface(KinechoInterface, discord.Client):
         
         print(f"DEBUG: Message from {user_name} ({user_id}) in channel {channel_id} (Guild: {guild_id}): {raw_query}")
         
+        memory = memory_manager.load_memory()
+        
+        # Create or get the user's profile and save immediately
+        discord_id = user_id if not is_dm else None # Store Discord ID if not a DM
+        memory_manager.create_or_get_user(memory, user_id, user_name, "discord", discord_id=discord_id)
+        memory_manager.save_memory(memory) # <-- NEW: Save after user creation/update
+
+        # Add user's message as an event and save immediately
+        memory_manager.add_user_event(memory, user_id, "message_in", channel_id, query, "discord")
+        memory_manager.update_channel_memory(memory, channel_id, [{"role": "user", "content": query}])
+        memory_manager.save_memory(memory) # <-- NEW: Save after adding message event and channel memory
+
         try:
             response_for_discord = await self.chatbot_processor(
                 query,
@@ -129,6 +141,10 @@ class DiscordInterface(KinechoInterface, discord.Client):
                     final_response_content = f"<@{user_id}> {final_response_content}"
                 
                 await self.send_message(channel_id, final_response_content)
+
+                memory_manager.add_user_event(memory, user_id, "message_out", channel_id, final_response_content, "discord")
+                memory_manager.update_channel_memory(memory, channel_id, [{"role": "assistant", "content": final_response_content}])
+                memory_manager.save_memory(memory) # <-- NEW: Save after bot's response
 
         except Exception as e:
             print(f"ERROR processing message: {e}")

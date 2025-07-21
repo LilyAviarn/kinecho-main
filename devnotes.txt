@@ -1,0 +1,3 @@
+- ERROR: Tool outputs are not sent to LLM in string format
+- FEATURE: Add more tools for time tracking and planning
+- FEATURE: Add uptime/downtime stamps

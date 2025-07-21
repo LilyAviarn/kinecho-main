@@ -23,10 +23,10 @@ SYSTEM_PROMPT_FILE = os.path.abspath("system_prompt.txt")
 
 # --- Helper functions ---
 
-def get_current_time(timezone_str: str = 'America/Chicago') -> Dict[str, Any]:
+def get_current_time(timezone_str: str = 'America/New_York') -> Dict[str, Any]:
     """
     Retrieves the current date and time in a specified timezone.
-    Defaults to America/Chicago if no timezone is provided.
+    Defaults to America/New_York if no timezone is provided.
     """
     try:
         tz = pytz.timezone(timezone_str)
@@ -106,7 +106,8 @@ async def get_chat_response(
     user_name: str,
     channel_id: str,
     guild_id: str,
-    interface_instances: Dict[str, Any]
+    interface_instances: Dict[str, Any],
+    kinecho_memory: Dict[str, Any]
 ) -> str:
     """
     Processes a user query using the OpenAI API, supporting tool calls.
@@ -121,10 +122,10 @@ async def get_chat_response(
         print(f"ERROR: System prompt file not found at {SYSTEM_PROMPT_FILE}. Using default prompt.")
         system_prompt_content = "You are a helpful AI assistant."
 
-    memory = memory_manager.load_memory()
+    memory = kinecho_memory
     memory_manager.create_or_get_user(memory, user_id, user_name, "discord" if guild_id else "console", discord_id=user_id if guild_id else None)
 
-    current_channel_history = memory_manager.get_channel_memory(memory, channel_id)[-10:]
+    current_channel_history = memory["channels"].get(channel_id, [])[-10:]
 
     messages = [
         {"role": "system", "content": system_prompt_content}
@@ -136,7 +137,7 @@ async def get_chat_response(
 
     messages.append({"role": "user", "content": query})
 
-    from kinecho_main import AVAILABLE_TOOLS_DEFINITIONS
+    from kinecho_tools import AVAILABLE_TOOLS_DEFINITIONS
 
     response_message = None
     tool_calls = []
@@ -145,7 +146,7 @@ async def get_chat_response(
     for _ in range(max_tool_iterations):
         try:
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-3.5-turbo",
                 messages=messages,
                 tools=AVAILABLE_TOOLS_DEFINITIONS,
                 tool_choice="auto"
@@ -242,6 +243,16 @@ async def get_chat_response(
                     tool_result = {"error": "Channel name is required to get channel ID."}
                 tool_output["content"] = tool_result
 
+            elif function_name == "get_kinecho_uptime": # NEW TOOL CALL HANDLING
+                tool_result = memory_manager.get_kinecho_uptime()
+                if "error" in tool_result:
+                    tool_output["content"] = tool_result
+                else:
+                    tool_output["content"] = {
+                        "response_for_user": tool_result["human_readable_uptime"],
+                        "raw_uptime_data": tool_result
+                    }
+
             else:
                 tool_output["content"] = {"error": f"Unknown tool: {function_name}"}
 
@@ -256,7 +267,7 @@ async def get_chat_response(
     elif tool_calls:
         try:
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-3.5-turbo",
                 messages=messages,
                 tools=AVAILABLE_TOOLS_DEFINITIONS,
                 tool_choice="auto"

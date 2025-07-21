@@ -5,153 +5,38 @@ from dotenv import load_dotenv
 from typing import List, Dict, Any, Callable
 from interfaces.discord_bot_interface import DiscordInterface, intents
 from interfaces.console_interface import ConsoleInterface
+import kinecho_tools
 import chatbot
 import memory_manager
+import logging
 
 load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    filename='kinecho_main.log', # Logs will go to this file
+    filemode='a', # Append to the file if it exists
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 # Global variable to hold active interface instances, needed for tool calling
 # We initialize them as None, and they will be set in main()
 global_discord_interface: DiscordInterface = None
 global_console_interface: ConsoleInterface = None
-
-
-# --- Define Tools Available to the Chatbot ---
-# This is a list of dictionaries, where each dictionary describes a tool.
-# The structure follows OpenAI's tool definition format.
-AVAILABLE_TOOLS_DEFINITIONS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "get_discord_user_status",
-            "description": "Retrieves the online status, custom status, display name, username, joined date, and shared guild of a Discord user by their user ID. This works only if the bot is in a shared server with the user and has the necessary permissions.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "user_id": {
-                        "type": "string",
-                        "description": "The Discord ID of the user whose status is to be retrieved."
-                    }
-                },
-                "required": ["user_id"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_current_time",
-            "description": "Retrieves the current date and time in a specified timezone. Defaults to America/Chicago if no timezone is provided.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "timezone_str": {
-                        "type": "string",
-                        "description": "The IANA timezone name (e.g., 'America/New_York', 'Europe/London'). Defaults to 'America/Chicago'."
-                    }
-                },
-                "required": []
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_conversation_history_for_channel",
-            "description": "Retrieves recent conversation history (messages) from a specific Discord channel. Useful for recalling what was discussed in other channels.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "channel_id": {
-                        "type": "string",
-                        "description": "The Discord ID of the channel whose conversation history is to be retrieved."
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "The maximum number of recent messages to retrieve (default: 10).",
-                        "default": 10
-                    }
-                },
-                "required": ["channel_id"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "add_user_derived_fact",
-            "description": "Adds a new high-level, summarized fact or insight about a specific Discord user to Kinecho's long-term memory. This should be used when Kinecho learns a significant piece of information about a user (e.g., their hobby, a personal preference, a recurring statement).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "user_id": {
-                        "type": "string",
-                        "description": "The Discord ID of the user to whom the fact pertains."
-                    },
-                    "fact_content": {
-                        "type": "string",
-                        "description": "The content of the derived fact to be stored."
-                    },
-                    "channel_id": {
-                        "type": "string",
-                        "description": "Optional: The Discord ID of the channel where the fact was derived or is relevant."
-                    }
-                },
-                "required": ["user_id", "fact_content"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_user_derived_facts",
-            "description": "Retrieves high-level, summarized facts or insights about a specific Discord user that Kinecho has learned over time.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "user_id": {
-                        "type": "string",
-                        "description": "The Discord ID of the user whose derived facts are to be retrieved."
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "The maximum number of recent derived facts to retrieve (default: 10).",
-                        "default": 10
-                    }
-                },
-                "required": ["user_id"]
-            }
-        }
-    },
-    { # NEW TOOL DEFINITION: get_discord_channel_id_by_name
-        "type": "function",
-        "function": {
-            "name": "get_discord_channel_id_by_name",
-            "description": "Retrieves the Discord numerical ID for a given channel name. Use this if the user provides a channel name (e.g., '#general', 'bot-commands') but you need the numerical ID to interact with other tools like getting conversation history. Can optionally search within a specific guild if its ID is known.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "channel_name": {
-                        "type": "string",
-                        "description": "The name of the Discord channel (e.g., 'general', 'bot-commands')."
-                    },
-                    "guild_id": {
-                        "type": "string",
-                        "description": "Optional: The Discord ID of the guild (server) to search within, if known. This helps when multiple guilds have channels with the same name."
-                    }
-                },
-                "required": ["channel_name"]
-            }
-        }
-    }
-]
+global_kinecho_memory: Dict[str, Any] = {}
 
 async def main():
-    global global_discord_interface, global_console_interface
+    global global_discord_interface, global_console_interface, global_kinecho_memory
 
     print("Kinecho Main: Starting Kinecho Commander...")
+
+    global_kinecho_memory = memory_manager.load_memory()
+    memory_manager.initialize_kinecho_start_time()
+    await memory_manager.save_memory(memory_manager.load_memory(), force=True)
 
     interface_instances: Dict[str, Any] = {}
 
@@ -170,59 +55,103 @@ async def main():
 
     discord_task = None
     console_task = None
+    save_task = asyncio.create_task(periodic_memory_saver())
 
     while True:
-        command_line = await asyncio.to_thread(input, "Kinecho Commander > ").strip()
+        command_line = (await asyncio.to_thread(input, "Kinecho Commander > ")).strip()
 
         if command_line.lower() == 'quit':
             print("Kinecho Commander: Initiating graceful shutdown...")
+            logger.info("Kinecho Commander: Initiating graceful shutdown...")
+
+            # --- Interface Shutdown ---
             if global_discord_interface.is_running:
+                logger.info("Kinecho Commander: Stopping Discord interface...")
                 global_discord_interface.stop()
+                if discord_task and not discord_task.done():
+                    # Wait for the discord_task to truly finish if it's still active
+                    await discord_task
+            
             if global_console_interface.is_running:
+                logger.info("Kinecho Commander: Stopping Console interface...")
                 await global_console_interface.stop()
+                if console_task and not console_task.done():
+                    # Wait for the console_task to truly finish
+                    await console_task
+            
+            # --- MEMORY SAVER SHUTDOWN GOES HERE ---
+            logger.info("Kinecho Main: Stopping periodic memory saver...")
+            save_task.cancel()
+            try:
+                await save_task # Await cancellation to ensure it cleans up
+            except asyncio.CancelledError:
+                logger.info("Kinecho Main: Periodic memory saver stopped.")
+            except Exception as e:
+                logger.error(f"Kinecho Main: Error while stopping periodic memory saver: {e}")
+            finally:
+                # Force one last save on shutdown to capture any final changes
+                logger.info("Kinecho Main: Forcing final memory save on shutdown.")
+                await memory_manager.save_memory(memory_manager.load_memory(), force=True)
+
             break
 
         elif command_line.lower() == 'start discord':
+            logger.info("Start Discord command used.")
             if not global_discord_interface.is_running:
                 print("Kinecho Commander: Starting Discord interface...")
+                logger.info("Kinecho Commander: Starting Discord interface...")
                 discord_task = asyncio.create_task(global_discord_interface.initialize_interface(DISCORD_BOT_TOKEN))
                 # Optionally wait for it to be ready, or just let it run in the background
             else:
                 print("Discord interface is already running.")
+                logger.info("Discord interface is already running.")
         
         elif command_line.lower() == 'stop discord':
+            logger.info("Stop Discord command used.")
             if global_discord_interface.is_running:
                 print("Kinecho Commander: Stopping Discord interface...")
+                logger.info("Kinecho Commander: Stopping Discord interface...")
                 global_discord_interface.stop()
                 if discord_task and not discord_task.done():
                     await discord_task # Wait for the task to finish if it's still running
             else:
                 print("Discord interface is not running.")
+                logger.info("Discord interface is not running.")
 
         elif command_line.lower() == 'start console':
+            logger.info("Start Console command used.")
             if not global_console_interface.is_running:
                 print("Kinecho Commander: Starting Console interface...")
+                logger.info("Kinecho Commander: Starting Console interface...")
                 console_task = asyncio.create_task(global_console_interface.initialize_interface())
             else:
                 print("Console interface is already running.")
+                logger.info("Console interface is already running.")
 
         elif command_line.lower() == 'stop console':
+            logger.info("Stop Console command used.")
             if global_console_interface.is_running:
                 print("Kinecho Commander: Stopping Console interface...")
+                logger.info("Kinecho Commander: Stopping Console interface...")
                 await global_console_interface.stop()
                 if console_task and not console_task.done():
                     await console_task # Wait for the task to finish
             else:
                 print("Console interface is not running.")
+                logger.info("Console interface is not running.")
 
         elif command_line.lower() == 'status':
+            logger.info("Status command used.")
             discord_status = "Running" if global_discord_interface.is_running else "Stopped"
             console_status = "Running" if global_console_interface.is_running else "Stopped"
             print(f"Interface Status:")
             print(f"  Discord: {discord_status}")
             print(f"  Console: {console_status}")
+            logger.info(f"  Discord: {discord_status}")
+            logger.info(f"  Console: {console_status}")
 
         elif command_line.lower() == 'help':
+            logger.info("Help command used.")
             print("Commands:")
             print("  quit          - Exit the Kinecho Commander.")
             print("  start discord - Start the Discord bot interface.")
@@ -246,9 +175,23 @@ async def main():
                 await global_console_interface.receive_message(mock_message)
             except Exception as e:
                 print(f"ERROR: Console interface message processing failed: {e}")
+                logger.error(f"Console interface message processing failed: {e}", exc_info=True) # exc_info=True for traceback
 
     print("Kinecho Main: Kinecho Commander exited.")
+    logger.info("Kinecho Main: Kinecho Commander exited.")
 
+async def periodic_memory_saver():
+    """Background task to periodically save memory if it's dirty."""
+    while True:
+        await asyncio.sleep(memory_manager._save_interval) # Use the defined interval
+        if memory_manager._memory_dirty:
+            print("DEBUG: Periodic save triggered.")
+            # Load memory inside the task, as the 'memory' object passed around
+            # might not be the most up-to-date global state if you move to a more
+            # centralized memory object. For now, load_memory() always gets the latest.
+            await memory_manager.save_memory(memory_manager.load_memory())
+        else:
+            print("DEBUG: Periodic save skipped (memory not dirty).") # For debugging
 
 if __name__ == "__main__":
     try:

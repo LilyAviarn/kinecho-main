@@ -10,9 +10,10 @@ class ConsoleInterface(KinechoInterface):
                  chatbot_processor_func: Callable[[str, str, str, str, str, Dict[str, Any]], str],
                  interface_instances: Dict[str, Any],
                  kinecho_memory: Dict[str, Any]):
-        super().__init__(chatbot_processor_func=chatbot_processor_func)
+        super().__init__(chatbot_processor_func=chatbot_processor_func, kinecho_memory=kinecho_memory)
         self._quit_event = asyncio.Event() # Event to signal when the console interface should quit
         self.interface_instances = interface_instances # Store the reference to the dictionary
+        self.kinecho_memory = kinecho_memory # Define memory object
         print("Console Interface: Initialized.")
 
     async def initialize_interface(self):

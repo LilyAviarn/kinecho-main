@@ -9,6 +9,7 @@ import kinecho_tools
 import chatbot
 import memory_manager
 import logging
+import traceback
 
 load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -43,11 +44,13 @@ async def main():
     global_discord_interface = DiscordInterface(
         chatbot_processor_func=chatbot.get_chat_response,
         intents=intents,
-        interface_instances=interface_instances
+        interface_instances=interface_instances,
+        kinecho_memory=global_kinecho_memory
     )
     global_console_interface = ConsoleInterface(
         chatbot_processor_func=chatbot.get_chat_response,
-        interface_instances=interface_instances
+        interface_instances=interface_instances,
+        kinecho_memory=global_kinecho_memory
     )
 
     interface_instances["discord_interface"] = global_discord_interface
@@ -200,5 +203,6 @@ if __name__ == "__main__":
         print("\nKinecho Main: Shutdown initiated by user via KeyboardInterrupt.")
     except Exception as e:
         print(f"Kinecho Main: An unexpected error occurred: {e}")
+        traceback.print_exc()
     finally:
         print("Kinecho Main: Application finished.")

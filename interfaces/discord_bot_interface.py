@@ -26,9 +26,10 @@ class DiscordInterface(KinechoInterface, discord.Client):
                  intents: discord.Intents,
                  interface_instances: Dict[str, Any],
                  kinecho_memory: Dict[str, Any]):
-        super().__init__(chatbot_processor_func=chatbot_processor_func)
+        super().__init__(chatbot_processor_func=chatbot_processor_func, kinecho_memory=kinecho_memory)
         discord.Client.__init__(self, intents=intents)
         self.interface_instances = interface_instances
+        self.kinecho_memory = kinecho_memory
         print("Discord Interface: Initialized.")
 
     async def initialize_interface(self, bot_token: str):

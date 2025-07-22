@@ -6,6 +6,7 @@ from typing import Any, Callable, List, Dict
 from interfaces.base_interface import KinechoInterface
 import memory_manager
 import chatbot # Keep this import
+import traceback
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -29,7 +30,6 @@ class DiscordInterface(KinechoInterface, discord.Client):
         super().__init__(chatbot_processor_func=chatbot_processor_func, kinecho_memory=kinecho_memory)
         discord.Client.__init__(self, intents=intents)
         self.interface_instances = interface_instances
-        self.kinecho_memory = kinecho_memory
         print("Discord Interface: Initialized.")
 
     async def initialize_interface(self, bot_token: str):
@@ -42,6 +42,7 @@ class DiscordInterface(KinechoInterface, discord.Client):
             await self.start(bot_token)
         except Exception as e:
             print(f"ERROR: Failed to connect to Discord: {e}")
+            traceback.print_exc()
             self.is_running = False
 
     async def get_channel_id_by_name(self, channel_name: str, guild_id: str = None) -> Dict[str, str]:
@@ -85,6 +86,7 @@ class DiscordInterface(KinechoInterface, discord.Client):
                 print(f"ERROR: Discord channel with ID {channel_id} not found.")
         except Exception as e:
             print(f"ERROR sending Discord message: {e}")
+            traceback.print_exc()
 
     async def receive_message(self, message: Any):
         if message.author == self.user:
@@ -94,8 +96,7 @@ class DiscordInterface(KinechoInterface, discord.Client):
         user_name = message.author.display_name
         channel_id = str(message.channel.id)
         guild_id = str(message.guild.id) if message.guild else None
-
-        raw_query = message.content
+        query = message.content
         
         # --- Handle bot mentions ---
         # Get the bot's user object to check for mentions
@@ -103,36 +104,37 @@ class DiscordInterface(KinechoInterface, discord.Client):
         bot_mention = f"<@{bot_user.id}>"
         
         # Determine if the message is a direct mention or a DM
-        is_direct_mention = raw_query.startswith(bot_mention)
+        is_direct_mention = self.user.mentioned_in(message)
         is_dm = isinstance(message.channel, discord.DMChannel)
 
-        query = raw_query
         if is_direct_mention:
-            # Remove the bot's mention from the query
-            query = raw_query[len(bot_mention):].strip()
+            clean_query = re.sub(r'<@!?%s>' % self.user.id, '', query).strip()
+            # If after stripping the mention, the query is empty, ignore it (e.g., just a mention)
+            if not clean_query:
+                await self.send_message(channel_id, f"Hey there, <@{user_id}>! What's up?")
+                return
+            query = clean_query
         
-        print(f"DEBUG: Message from {user_name} ({user_id}) in channel {channel_id} (Guild: {guild_id}): {raw_query}")
-        
-        memory = self.kinecho_memory
-        
-        # Create or get the user's profile and save immediately
-        discord_id = user_id if not is_dm else None # Store Discord ID if not a DM
-        memory_manager.create_or_get_user(memory, user_id, user_name, "discord", discord_id=discord_id)
-        memory_manager.save_memory(memory) # <-- NEW: Save after user creation/update
-
-        # Add user's message as an event and save immediately
-        memory_manager.add_user_event(memory, user_id, "message_in", channel_id, query, "discord")
-        memory_manager.update_channel_memory(memory, channel_id, [{"role": "user", "content": query}])
-        memory_manager.save_memory(memory) # <-- NEW: Save after adding message event and channel memory
+        print(f"DEBUG: Message from {user_name} ({user_id}) in channel {message.channel.name} (Guild: {message.guild.name if message.guild else 'DM'}): {query}")
 
         try:
+            memory = self.kinecho_memory # Use the instance's memory object
+
+            # Ensure user exists in memory
+            await memory_manager.create_or_get_user(memory, user_id, user_name, "discord" if guild_id else "dm", discord_id=user_id)
+
+            # Add user's message as an event
+            await memory_manager.add_user_event(memory, user_id, "message_in", channel_id, query, "discord" if guild_id else "dm")
+            await memory_manager.update_channel_memory(memory, channel_id, [{"role": "user", "content": query}])
+
             response_for_discord = await self.chatbot_processor(
                 query,
                 user_id,
                 user_name,
                 channel_id,
                 guild_id,
-                self.interface_instances
+                self.interface_instances,
+                self.kinecho_memory
             )
 
             if response_for_discord:
@@ -144,12 +146,12 @@ class DiscordInterface(KinechoInterface, discord.Client):
                 
                 await self.send_message(channel_id, final_response_content)
 
-                memory_manager.add_user_event(memory, user_id, "message_out", channel_id, final_response_content, "discord")
-                memory_manager.update_channel_memory(memory, channel_id, [{"role": "assistant", "content": final_response_content}])
-                memory_manager.save_memory(memory) # <-- NEW: Save after bot's response
+                await memory_manager.add_user_event(memory, user_id, "message_out", channel_id, final_response_content, "discord")
+                await memory_manager.update_channel_memory(memory, channel_id, [{"role": "assistant", "content": final_response_content}])
 
         except Exception as e:
             print(f"ERROR processing message: {e}")
+            traceback.print_exc()
             await self.send_message(channel_id, "Oops! I encountered an error trying to process that. My apologies!")
 
     async def on_ready(self):

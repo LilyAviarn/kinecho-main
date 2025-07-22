@@ -73,13 +73,6 @@ def _mark_memory_dirty():
     pass
 
 def create_or_get_user(memory: dict, user_id: str, user_name: str, interface_type: str, discord_id: str = None) -> dict:
-    """
-    Ensures a user's profile exists in the memory and returns their profile.
-    If the user doesn't exist, a new profile is created with the nested 'profile' structure.
-    If the user exists, their 'profile.name' is updated to the latest provided.
-    """
-    _mark_memory_dirty()
-def create_or_get_user(memory: dict, user_id: str, user_name: str, interface_type: str, discord_id: str = None) -> dict:
     _mark_memory_dirty()
 
     # --- Robustness: Ensure 'users' key in memory is a dictionary ---
@@ -148,13 +141,14 @@ def create_or_get_user(memory: dict, user_id: str, user_name: str, interface_typ
 
     return user_data
 
-def add_user_event(memory: dict, user_id: str, event_type: str, channel_id: str, content: str, source: str):
+async def add_user_event(memory: dict, user_id: str, event_type: str, channel_id: str, content: str, source: str):
     """
     Adds a new event to a user's event stream.
     """
     _mark_memory_dirty()
     if user_id not in memory["users"]:
         # This should ideally not happen if create_or_get_user is called first
+        logger.warning(f"Attempted to add event for non-existent user_id: {user_id}. Creating user.")
         print(f"Warning: User {user_id} not found when trying to add event. Creating temporary entry.")
         memory["users"][user_id] = {
             "profile": {"name": f"Unknown {user_id}", "interface_type": source},
@@ -162,14 +156,14 @@ def add_user_event(memory: dict, user_id: str, event_type: str, channel_id: str,
             "derived_facts": []
         }
     user_events = memory["users"][user_id]["events"]
-    event = {
+    memory["users"][user_id]["events"].append({
         "timestamp": datetime.datetime.now().isoformat(),
         "type": event_type,
-        "channel_id": channel_id if channel_id is not None else DM_KEY,
+        "channel_id": channel_id,
         "content": content,
         "source": source
-    }
-    user_events.append(event)
+    })
+    await save_memory(memory)
     # We can implement a pruning strategy for events later if the list grows too large
     # For now, let's allow it to grow.
 
@@ -178,7 +172,7 @@ def get_channel_memory(memory, channel_id):
     channel_key = DM_KEY if channel_id is None else str(channel_id)
     return memory.get("channels", {}).get(channel_key, [])
 
-def update_channel_memory(memory, channel_id, new_data):
+async def update_channel_memory(memory, channel_id, new_data):
     """Adds messages to a channel's conversation history within the 'channels' top-level key."""
     _mark_memory_dirty()
     channel_key = DM_KEY if channel_id is None else str(channel_id)
@@ -195,9 +189,9 @@ def update_channel_memory(memory, channel_id, new_data):
     memory["channels"][channel_key].extend(formatted_data)
     if len(memory["channels"][channel_key]) > 20:  # Keep a maximum of 20 entries
         memory["channels"][channel_key] = memory["channels"][channel_key][-20:]
-    save_memory(memory)
+    await save_memory(memory)
 
-def add_derived_fact_to_user(user_id: str, fact_content: str, channel_id: str = None, source: str = "llm_derivation"):
+async def add_derived_fact_to_user(user_id: str, fact_content: str, channel_id: str = None, source: str = "llm_derivation"):
     """
     Adds a new derived fact to a user's memory.
     The fact is stored as an object including timestamp, content, and source.
@@ -221,7 +215,7 @@ def add_derived_fact_to_user(user_id: str, fact_content: str, channel_id: str = 
             "source": source
         }
         user_data["derived_facts"].append(fact_entry)
-        save_memory(memory) # Save memory after adding the fact
+        await save_memory(memory) # Save memory after adding the fact
     else:
         print(f"WARNING: Attempted to add derived fact for non-existent user ID: {user_id}")
 

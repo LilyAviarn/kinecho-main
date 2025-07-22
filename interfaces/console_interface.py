@@ -13,7 +13,6 @@ class ConsoleInterface(KinechoInterface):
         super().__init__(chatbot_processor_func=chatbot_processor_func, kinecho_memory=kinecho_memory)
         self._quit_event = asyncio.Event() # Event to signal when the console interface should quit
         self.interface_instances = interface_instances # Store the reference to the dictionary
-        self.kinecho_memory = kinecho_memory # Define memory object
         print("Console Interface: Initialized.")
 
     async def initialize_interface(self):
@@ -41,8 +40,6 @@ class ConsoleInterface(KinechoInterface):
         user_name = message.author.display_name
         channel_id = message.channel.id
         query = message.content # Extract content from the mock message
-
-        # For console, guild_id is always None
         guild_id = None
 
         print(f"DEBUG: Message from {user_name} ({user_id}) in channel {channel_id} (Guild: {guild_id}): {query}")
@@ -53,9 +50,8 @@ class ConsoleInterface(KinechoInterface):
         memory_manager.create_or_get_user(memory, user_id, user_name, "console", discord_id=None)
 
         # Add user's message as an event
-        memory_manager.add_user_event(memory, user_id, "message_in", channel_id, query, "console")
-        memory_manager.update_channel_memory(memory, channel_id, [{"role": "user", "content": query}])
-        memory_manager.save_memory(memory)
+        await memory_manager.add_user_event(memory, user_id, "message_in", channel_id, query, "console")
+        await memory_manager.update_channel_memory(memory, channel_id, [{"role": "user", "content": query}])
 
         # --- Get response from Chatbot Processor ---
         response_content = await self.chatbot_processor( # AWAIT the async function call
@@ -64,16 +60,16 @@ class ConsoleInterface(KinechoInterface):
             user_name,
             channel_id,
             guild_id, # <-- Pass guild_id (None for console)
-            self.interface_instances # <-- Pass the interface_instances
+            self.interface_instances, # <-- Pass the interface_instances
+            self.kinecho_memory
         )
 
         # --- Send Response and Update Memory ---
         await self.send_message(channel_id, response_content)
 
         # Add bot's response as an event
-        memory_manager.add_user_event(memory, user_id, "message_out", channel_id, response_content, "console")
-        memory_manager.update_channel_memory(memory, channel_id, [{"role": "assistant", "content": response_content}])
-        memory_manager.save_memory(memory)
+        await memory_manager.add_user_event(memory, user_id, "message_out", channel_id, response_content, "console")
+        await memory_manager.update_channel_memory(memory, channel_id, [{"role": "assistant", "content": response_content}])
 
     async def stop(self):
         """

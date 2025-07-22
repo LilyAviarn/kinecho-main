@@ -123,7 +123,7 @@ async def get_chat_response(
         system_prompt_content = "You are a helpful AI assistant."
 
     memory = kinecho_memory
-    memory_manager.create_or_get_user(memory, user_id, user_name, "discord" if guild_id else "console", discord_id=user_id if guild_id else None)
+    await memory_manager.create_or_get_user(memory, user_id, user_name, "discord" if guild_id else "console", discord_id=user_id if guild_id else None)
 
     current_channel_history = memory["channels"].get(channel_id, [])[-10:]
 
@@ -259,10 +259,9 @@ async def get_chat_response(
             messages.append(tool_output)
 
     if response_message and response_message.content:
-        memory_manager.update_channel_memory(
+        await memory_manager.update_channel_memory(
             memory, channel_id, [{"role": "assistant", "content": response_message.content}]
         )
-        memory_manager.save_memory(memory)
         return response_message.content
     elif tool_calls:
         try:
@@ -274,10 +273,9 @@ async def get_chat_response(
             )
             final_response_message = response.choices[0].message
             if final_response_message.content:
-                memory_manager.update_channel_memory(
+                await memory_manager.update_channel_memory(
                     memory, channel_id, [{"role": "assistant", "content": final_response_message.content}]
                 )
-                memory_manager.save_memory(memory)
                 return final_response_message.content
         except Exception as e:
             print(f"ERROR: Failed to get final response after tool calls: {e}")

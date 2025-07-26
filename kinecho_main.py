@@ -59,126 +59,162 @@ async def main():
     discord_task = None
     console_task = None
     save_task = asyncio.create_task(periodic_memory_saver())
+    asyncio.create_task(periodic_memory_saver())
 
     while True:
-        command_line = (await asyncio.to_thread(input, "Kinecho Commander > ")).strip()
+        try:
+            command_line = (await asyncio.to_thread(input, "Kinecho Commander > ")).strip()
 
-        if command_line.lower() == 'quit':
-            print("Kinecho Commander: Initiating graceful shutdown...")
-            logger.info("Kinecho Commander: Initiating graceful shutdown...")
-
-            # --- Interface Shutdown ---
-            if global_discord_interface.is_running:
-                logger.info("Kinecho Commander: Stopping Discord interface...")
-                global_discord_interface.stop()
-                if discord_task and not discord_task.done():
-                    # Wait for the discord_task to truly finish if it's still active
-                    await discord_task
+            if command_line.lower() == 'quit':
+                print("Kinecho Commander: Initiating graceful shutdown...")
+                logger.info("Kinecho Commander: Initiating graceful shutdown...")
+                sys.exit(0)
             
-            if global_console_interface.is_running:
-                logger.info("Kinecho Commander: Stopping Console interface...")
-                await global_console_interface.stop()
-                if console_task and not console_task.done():
-                    # Wait for the console_task to truly finish
-                    await console_task
-            
-            # --- MEMORY SAVER SHUTDOWN GOES HERE ---
-            logger.info("Kinecho Main: Stopping periodic memory saver...")
-            save_task.cancel()
-            try:
-                await save_task # Await cancellation to ensure it cleans up
-            except asyncio.CancelledError:
-                logger.info("Kinecho Main: Periodic memory saver stopped.")
-            except Exception as e:
-                logger.error(f"Kinecho Main: Error while stopping periodic memory saver: {e}")
-            finally:
-                # Force one last save on shutdown to capture any final changes
-                logger.info("Kinecho Main: Forcing final memory save on shutdown.")
-                await memory_manager.save_memory(memory_manager.load_memory(), force=True)
+                # --- MEMORY SAVER SHUTDOWN GOES HERE ---
+                logger.info("Kinecho Main: Stopping periodic memory saver...")
+                save_task.cancel()
+                try:
+                    await save_task # Await cancellation to ensure it cleans up
+                except asyncio.CancelledError:
+                    logger.info("Kinecho Main: Periodic memory saver stopped.")
+                except Exception as e:
+                    logger.error(f"Kinecho Main: Error while stopping periodic memory saver: {e}")
+                finally:
+                    # Force one last save on shutdown to capture any final changes
+                    logger.info("Kinecho Main: Forcing final memory save on shutdown.")
+                    await memory_manager.save_memory(memory_manager.load_memory(), force=True)
 
-            break
+                break
 
-        elif command_line.lower() == 'start discord':
-            logger.info("Start Discord command used.")
-            if not global_discord_interface.is_running:
-                print("Kinecho Commander: Starting Discord interface...")
-                logger.info("Kinecho Commander: Starting Discord interface...")
-                discord_task = asyncio.create_task(global_discord_interface.initialize_interface(DISCORD_BOT_TOKEN))
-                # Optionally wait for it to be ready, or just let it run in the background
-            else:
-                print("Discord interface is already running.")
-                logger.info("Discord interface is already running.")
+            elif command_line.lower() == 'start discord':
+                logger.info("Start Discord command used.")
+                if not global_discord_interface.is_running:
+                    print("Kinecho Commander: Starting Discord interface...")
+                    logger.info("Kinecho Commander: Starting Discord interface...")
+                    discord_task = asyncio.create_task(global_discord_interface.initialize_interface(DISCORD_BOT_TOKEN))
+                    # Optionally wait for it to be ready, or just let it run in the background
+                else:
+                    print("Discord interface is already running.")
+                    logger.info("Discord interface is already running.")
         
-        elif command_line.lower() == 'stop discord':
-            logger.info("Stop Discord command used.")
-            if global_discord_interface.is_running:
-                print("Kinecho Commander: Stopping Discord interface...")
-                logger.info("Kinecho Commander: Stopping Discord interface...")
-                global_discord_interface.stop()
-                if discord_task and not discord_task.done():
-                    await discord_task # Wait for the task to finish if it's still running
-            else:
-                print("Discord interface is not running.")
-                logger.info("Discord interface is not running.")
+            elif command_line.lower() == 'stop discord':
+                logger.info("Stop Discord command used.")
+                if global_discord_interface.is_running:
+                    print("Kinecho Commander: Stopping Discord interface...")
+                    logger.info("Kinecho Commander: Stopping Discord interface...")
+                    global_discord_interface.stop()
+                    if discord_task and not discord_task.done():
+                        await discord_task # Wait for the task to finish if it's still running
+                else:
+                    print("Discord interface is not running.")
+                    logger.info("Discord interface is not running.")
 
-        elif command_line.lower() == 'start console':
-            logger.info("Start Console command used.")
-            if not global_console_interface.is_running:
-                print("Kinecho Commander: Starting Console interface...")
-                logger.info("Kinecho Commander: Starting Console interface...")
-                console_task = asyncio.create_task(global_console_interface.initialize_interface())
-            else:
-                print("Console interface is already running.")
-                logger.info("Console interface is already running.")
+            elif command_line.lower() == 'start console':
+                logger.info("Start Console command used.")
+                if not global_console_interface.is_running:
+                    print("Kinecho Commander: Starting Console interface...")
+                    logger.info("Kinecho Commander: Starting Console interface...")
 
-        elif command_line.lower() == 'stop console':
-            logger.info("Stop Console command used.")
-            if global_console_interface.is_running:
-                print("Kinecho Commander: Stopping Console interface...")
-                logger.info("Kinecho Commander: Stopping Console interface...")
-                await global_console_interface.stop()
-                if console_task and not console_task.done():
-                    await console_task # Wait for the task to finish
-            else:
-                print("Console interface is not running.")
-                logger.info("Console interface is not running.")
+                    # Initialize the console interface (now non-blocking)
+                    await global_console_interface.initialize_interface() 
 
-        elif command_line.lower() == 'status':
-            logger.info("Status command used.")
-            discord_status = "Running" if global_discord_interface.is_running else "Stopped"
-            console_status = "Running" if global_console_interface.is_running else "Stopped"
-            print(f"Interface Status:")
-            print(f"  Discord: {discord_status}")
-            print(f"  Console: {console_status}")
-            logger.info(f"  Discord: {discord_status}")
-            logger.info(f"  Console: {console_status}")
+                    if global_console_interface.is_running: # Ensure initialization was successful
+                        print("Console Interface: Ready for input. Type 'quit' to exit application, 'stop console' (from commander) to exit mode.") # Clarify usage
+                        # Enter a new, dedicated loop for console input
+                        while True: # This loop now runs until 'quit' or 'stop console' (indirectly)
+                            # Use the desired "You > " prompt here
+                            console_input = (await asyncio.to_thread(input, "You > ")).strip() 
 
-        elif command_line.lower() == 'help':
-            logger.info("Help command used.")
-            print("Commands:")
-            print("  quit          - Exit the Kinecho Commander.")
-            print("  start discord - Start the Discord bot interface.")
-            print("  stop discord  - Stop the Discord bot interface.")
-            print("  start console - Start the console interface.")
-            print("  stop console  - Stop the console interface.")
-            print("  status        - Show the running status of interfaces.")
-            print("  [your message] - Send a message to the console interface.")
+                            if console_input.lower() == "quit":
+                                print("Kinecho Commander: Initiating full application shutdown.")
+                                logger.info("Kinecho Commander: Initiating full application shutdown.")
+                                # Calling stop() on the interface isn't strictly necessary here as we're exiting
+                                sys.exit(0) # Exit the entire application from within the console loop
 
-        elif command_line:
-            # Treat as a message for the console interface
-            user_id = "console_user"
-            channel_id = "kinecho_console_chat"
-            mock_message = type('MockMessage', (object,), {
-                'author': type('MockAuthor', (object,), {'id': user_id, 'display_name': "You (Console)"}),
-                'content': command_line,
-                'channel': type('MockChannel', (object,), {'id': channel_id}),
-                'guild': None
-            })()
-            try:
-                await global_console_interface.receive_message(mock_message)
-            except Exception as e:
-                print(f"ERROR: Console interface message processing failed: {e}")
-                logger.error(f"Console interface message processing failed: {e}", exc_info=True) # exc_info=True for traceback
+                            # If it's the 'stop console' command, we need to exit this inner loop
+                            # and let the main loop handle the 'stop console' command.
+                            # Or, more simply, if it's the 'stop console' command, we can just break from this loop.
+                            # Let's make 'stop console' directly applicable from 'You >' prompt too
+                            if console_input.lower() == "stop console":
+                                await global_console_interface.stop() # This sets is_running to False
+                                print("Kinecho Commander: Exited Console interface mode.")
+                                break # Exit this inner console input loop and return to the main commander loop
+
+                            # Create the MockMessage object with nested attributes
+                            user_id_console = "console_user" 
+                            channel_id_console = "kinecho_console_chat" 
+
+                            mock_message_for_console = type('MockMessage', (object,), {
+                                'author': type('MockAuthor', (object,), {'id': user_id_console, 'display_name': "You (Console)"}),
+                                'content': console_input,
+                                'channel': type('MockChannel', (object,), {'id': channel_id_console}),
+                                'guild': None 
+                            })()
+
+                            # Call receive_message, passing only the mock_message_for_console object
+                            try:
+                                await global_console_interface.receive_message(mock_message_for_console) 
+                            except Exception as e:
+                                print(f"ERROR: Console interface message processing failed: {e}")
+                                logger.error(f"Console interface message processing failed: {e}", exc_info=True)
+                    else:
+                        print("ERROR: Console interface failed to start properly. Check logs.")
+                else:
+                    print("Console interface is already running.")
+                    logger.info("Console interface is already running.")
+
+            elif command_line.lower() == 'stop console':
+                logger.info("Stop Console command used.")
+                if global_console_interface.is_running:
+                    print("Kinecho Commander: Stopping Console interface...")
+                    logger.info("Kinecho Commander: Stopping Console interface...")
+                    await global_console_interface.stop()
+                    if console_task and not console_task.done():
+                        await console_task # Wait for the task to finish
+                else:
+                    print("Console interface is not running.")
+                    logger.info("Console interface is not running.")
+
+            elif command_line.lower() == 'status':
+                logger.info("Status command used.")
+                discord_status = "Running" if global_discord_interface.is_running else "Stopped"
+                console_status = "Running" if global_console_interface.is_running else "Stopped"
+                print(f"Interface Status:")
+                print(f"  Discord: {discord_status}")
+                print(f"  Console: {console_status}")
+                logger.info(f"  Discord: {discord_status}")
+                logger.info(f"  Console: {console_status}")
+
+            elif command_line.lower() == 'help':
+                logger.info("Help command used.")
+                print("Commands:")
+                print("  quit          - Exit the Kinecho Commander.")
+                print("  start discord - Start the Discord bot interface.")
+                print("  stop discord  - Stop the Discord bot interface.")
+                print("  start console - Start the console interface.")
+                print("  stop console  - Stop the console interface.")
+                print("  status        - Show the running status of interfaces.")
+                print("  [your message] - Send a message to the console interface.")
+
+            elif command_line:
+                # Treat as a message for the console interface
+                user_id = "console_user"
+                channel_id = "kinecho_console_chat"
+                mock_message = type('MockMessage', (object,), {
+                    'author': type('MockAuthor', (object,), {'id': user_id, 'display_name': "You (Console)"}),
+                    'content': command_line,
+                    'channel': type('MockChannel', (object,), {'id': channel_id}),
+                    'guild': None
+                })()
+                try:
+                    await global_console_interface.receive_message(mock_message)
+                except Exception as e:
+                    print(f"ERROR: Console interface message processing failed: {e}")
+                    logger.error(f"Console interface message processing failed: {e}", exc_info=True) # exc_info=True for traceback
+            
+        except Exception as e:
+            print(f"ERROR: An error occurred in the main loop: {e}")
+            logger.error(f"An error occurred in the main loop: {e}")
 
     print("Kinecho Main: Kinecho Commander exited.")
     logger.info("Kinecho Main: Kinecho Commander exited.")

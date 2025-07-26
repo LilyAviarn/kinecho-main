@@ -72,7 +72,7 @@ def _mark_memory_dirty():
     _memory_dirty = True
     pass
 
-def create_or_get_user(memory: dict, user_id: str, user_name: str, interface_type: str, discord_id: str = None) -> dict:
+async def create_or_get_user(memory: dict, user_id: str, user_name: str, interface_type: str, discord_id: str = None) -> dict:
     _mark_memory_dirty()
 
     # --- Robustness: Ensure 'users' key in memory is a dictionary ---

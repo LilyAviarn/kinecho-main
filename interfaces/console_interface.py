@@ -21,10 +21,8 @@ class ConsoleInterface(KinechoInterface):
         It sets up for input, but the main input loop will be in kinecho_main.py.
         """
         self._quit_event.clear()
-        print("Console Interface: Ready for input. Type 'quit' to return to Commander.")
+        print("Console Interface: Initialized for input...")
         self.is_running = True
-        await self._quit_event.wait()
-        print("Console Interface: Shutting down.")
 
     async def send_message(self, channel_id: str, message_content: str):
         """
@@ -47,14 +45,14 @@ class ConsoleInterface(KinechoInterface):
         # Load memory for the console user and channel
         memory = self.kinecho_memory
         # Create or get user for console context
-        memory_manager.create_or_get_user(memory, user_id, user_name, "console", discord_id=None)
+        await memory_manager.create_or_get_user(memory, user_id, user_name, "console", discord_id=None)
 
         # Add user's message as an event
         await memory_manager.add_user_event(memory, user_id, "message_in", channel_id, query, "console")
         await memory_manager.update_channel_memory(memory, channel_id, [{"role": "user", "content": query}])
 
         # --- Get response from Chatbot Processor ---
-        response_content = await self.chatbot_processor( # AWAIT the async function call
+        response_content = await self.chatbot_processor(
             query,
             user_id,
             user_name,

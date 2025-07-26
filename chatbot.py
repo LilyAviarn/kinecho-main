@@ -112,6 +112,8 @@ async def get_chat_response(
     """
     Processes a user query using the OpenAI API, supporting tool calls.
     """
+    print("DEBUG: Entered get_chat_response function.")
+
     system_prompt_content = ""
     try:
         with open(SYSTEM_PROMPT_FILE, "r") as f:
@@ -179,14 +181,14 @@ async def get_chat_response(
                     tool_result = get_current_time()
 
                 if "error" in tool_result:
-                    tool_output["content"] = tool_result
+                    tool_output["content"] = json.dumps(tool_result)
                 else:
                     unix_ts = tool_result["unix_timestamp"]
                     discord_timestamp_markdown = f"<t:{unix_ts}:F>"
-                    tool_output["content"] = {
+                    tool_output["content"] = json.dumps({
                         "response_for_user": f"The time for {tool_result['timezone']} is: {discord_timestamp_markdown}",
                         "raw_time_data": tool_result
-                    }
+                    })
 
             elif function_name == "get_discord_user_status":
                 user_id_arg = function_args.get("user_id")
@@ -198,7 +200,7 @@ async def get_chat_response(
                         tool_result = {"error": "Discord interface not available to get user status. Make sure the Discord bot is running."}
                 else:
                     tool_result = {"error": "User ID is required to get Discord user status."}
-                tool_output["content"] = tool_result
+                tool_output["content"] = json.dumps(tool_result)
 
             elif function_name == "get_conversation_history_for_channel":
                 channel_id_arg = function_args.get("channel_id")
@@ -207,18 +209,18 @@ async def get_chat_response(
                     tool_result = memory_manager.get_conversation_history_for_channel(channel_id_arg, limit_arg)
                 else:
                     tool_result = {"error": "Channel ID is required to get conversation history."}
-                tool_output["content"] = tool_result
+                tool_output["content"] = json.dumps(tool_result)
 
             elif function_name == "add_user_derived_fact":
                 user_id_arg = function_args.get("user_id")
                 fact_content_arg = function_args.get("fact_content")
                 channel_id_arg = function_args.get("channel_id")
                 if user_id_arg and fact_content_arg:
-                    memory_manager.add_derived_fact_to_user(user_id_arg, fact_content_arg, channel_id_arg)
+                    await memory_manager.add_derived_fact_to_user(user_id_arg, fact_content_arg, channel_id_arg)
                     tool_result = {"status": "success", "message": "Derived fact added."}
                 else:
                     tool_result = {"error": "User ID and fact content are required to add a derived fact."}
-                tool_output["content"] = tool_result
+                tool_output["content"] = json.dumps(tool_result)
 
             elif function_name == "get_user_derived_facts":
                 user_id_arg = function_args.get("user_id")
@@ -227,7 +229,7 @@ async def get_chat_response(
                     tool_result = memory_manager.get_derived_facts_for_user(user_id_arg, limit_arg)
                 else:
                     tool_result = {"error": "User ID is required to retrieve derived facts."}
-                tool_output["content"] = tool_result
+                tool_output["content"] = json.dumps(tool_result)
 
             elif function_name == "get_discord_channel_id_by_name":
                 channel_name_arg = function_args.get("channel_name")
@@ -241,20 +243,20 @@ async def get_chat_response(
                         tool_result = {"error": "Discord interface not available to resolve channel name. Make sure the Discord bot is running."}
                 else:
                     tool_result = {"error": "Channel name is required to get channel ID."}
-                tool_output["content"] = tool_result
+                tool_output["content"] = json.dumps(tool_result)
 
             elif function_name == "get_kinecho_uptime": # NEW TOOL CALL HANDLING
                 tool_result = memory_manager.get_kinecho_uptime()
                 if "error" in tool_result:
-                    tool_output["content"] = tool_result
+                    tool_output["content"] = json.dumps(tool_result)
                 else:
-                    tool_output["content"] = {
+                    tool_output["content"] = json.dumps({
                         "response_for_user": tool_result["human_readable_uptime"],
                         "raw_uptime_data": tool_result
-                    }
+                    })
 
             else:
-                tool_output["content"] = {"error": f"Unknown tool: {function_name}"}
+                tool_output["content"] = json.dumps({"error": f"Unknown tool: {function_name}"})
 
             messages.append(tool_output)
 
@@ -278,6 +280,7 @@ async def get_chat_response(
                 )
                 return final_response_message.content
         except Exception as e:
+            traceback.print_exc()
             print(f"ERROR: Failed to get final response after tool calls: {e}")
             return "I finished my task, but I couldn't formulate a final response."
     else:

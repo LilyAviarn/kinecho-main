@@ -1,13 +1,13 @@
 [project]
 name = "kinecho-main"
-version = "0.0.0.2"
+version = "0.0.0.3"
 description = "AI companion Kinecho"
 authors = [
     {name = "LilyAviarn"}
 ]
 license = {text = "None"}
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "altair (>=5.5.0,<6.0.0)",
     "asyncio (>=3.4.3,<4.0.0)",

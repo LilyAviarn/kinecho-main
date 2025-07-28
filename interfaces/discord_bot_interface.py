@@ -109,11 +109,13 @@ class DiscordInterface(KinechoInterface, discord.Client):
 
         if is_direct_mention:
             clean_query = re.sub(r'<@!?%s>' % self.user.id, '', query).strip()
-            # If after stripping the mention, the query is empty, ignore it (e.g., just a mention)
+            # If after stripping the mention, the query is empty (e.g., just a mention)
             if not clean_query:
                 await self.send_message(channel_id, f"Hey there, <@{user_id}>! What's up?")
                 return
             query = clean_query
+        else:
+            return
         
         print(f"DEBUG: Message from {user_name} ({user_id}) in channel {message.channel.name} (Guild: {message.guild.name if message.guild else 'DM'}): {query}")
 

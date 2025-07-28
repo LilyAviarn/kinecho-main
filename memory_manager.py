@@ -62,7 +62,7 @@ async def save_memory(memory: dict, force: bool = False):
                 json.dump(memory, f, indent=4)
             _memory_dirty = False
             _last_save_time = time.time()
-            print(f"DEBUG: Memory saved to {KINECHO_MEMORY_FILE}") # For debugging
+            print(f"DEBUG: Memory saved to {KINECHO_MEMORY_FILE}")
         except IOError as e:
             print(f"ERROR: Could not save memory to {KINECHO_MEMORY_FILE}: {e}")
 

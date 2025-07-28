@@ -230,7 +230,7 @@ async def periodic_memory_saver():
             # centralized memory object. For now, load_memory() always gets the latest.
             await memory_manager.save_memory(memory_manager.load_memory())
         else:
-            print("DEBUG: Periodic save skipped (memory not dirty).") # For debugging
+            print("DEBUG: Periodic save skipped (memory not dirty).")
 
 if __name__ == "__main__":
     try:

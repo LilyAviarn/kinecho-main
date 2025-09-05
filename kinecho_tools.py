@@ -130,11 +130,63 @@ AVAILABLE_TOOLS_DEFINITIONS = [
     "type": "function",
         "function": {
             "name": "get_kinecho_uptime",
-            "description": "Retrieves how long Kinecho has been running since its initial startup. This provides Kinecho with a concept of its own 'age' or 'uptime'.",
+            "description": "Retrieves how long Kinecho has been running. Can be used to fetch either session uptime or uptime overall.",
             "parameters": {
                 "type": "object",
-                "properties": {},
-                "required": []
+                "properties": {
+                    "scope": {
+                        "type": "string",
+                        "description": "The scope of uptime to retrieve. Choose between 'all' or 'session'."
+                    }
+                },
+                "required": ["scope"]
+            }
+        }
+    },
+    {
+    "type": "function",
+        "function": {
+            "name": "set_timer",
+            "description": "Sets a timer for the specified duration. Optionally, a reason can be set, which will be included in the timerEnd message to the user.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "duration": {
+                        "type": "integer",
+                        "description": "The duration of the timer in 'hh:mm:ss'."
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "The reason the user is requesting the timer, such as '', '' or ''."
+                    }
+                },
+                "required": ["duration"]
+            }
+        }
+    },
+    {
+    "DO NOT USE ANYTHING BELOW THIS LINE, KINECHO! It WILL NOT work if you try! -Lily"
+    },
+    {
+    "type": "function",
+        "function": {
+            "name": "get_time_elapsed",
+            "description": "Retrieves the amount of time that has elapsed since a specified message or event.",
+            # I plan for this function to be able to get the timestamp of either a message (for discord probably via message link), 
+            # or an event from Kinecho's memory, and then calculate how much time has passed from then til "now" 
+            # (probably fetched via `get_current_time`).
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "argument": {
+                        "type": "",
+                        "description": ""
+                    },
+                    "argument2": {
+                        "type": "",
+                        "description": ""
+                    }
+                }
             }
         }
     }

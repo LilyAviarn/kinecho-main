@@ -245,16 +245,31 @@ async def get_chat_response(
                     tool_result = {"error": "Channel name is required to get channel ID."}
                 tool_output["content"] = json.dumps(tool_result)
 
-            elif function_name == "get_kinecho_uptime": # NEW TOOL CALL HANDLING
-                tool_result = memory_manager.get_kinecho_uptime()
-                if "error" in tool_result:
-                    tool_output["content"] = json.dumps(tool_result)
+            elif function_name == "get_kinecho_uptime": # Now picks between All Uptime or Session Uptime.
+                scope_arg = function_args.get("scope")
+
+                if scope_arg:
+                    if scope_arg == "all":
+                        tool_result = memory_manager.get_kinecho_uptime()
+                        tool_output["content"] = json.dumps({
+                            "response_for_user": tool_result["human_readable_uptime"],
+                            "raw_uptime_data": tool_result
+                        })
+                    elif scope_arg == "session":
+                        tool_result = memory_manager.get_session_uptime()
+                        tool_output["content"] = json.dumps({
+                            "response_for_user": tool_result["human_readable_uptime"],
+                            "raw_uptime_data": tool_result
+                        })
+                    else:
+                        tool_output["content"] = json.dumps({
+                            "error": "Invalid scope provided. Please choose 'all' or 'session'."
+                        })
                 else:
                     tool_output["content"] = json.dumps({
-                        "response_for_user": tool_result["human_readable_uptime"],
-                        "raw_uptime_data": tool_result
+                        "error": "Scope of uptime is a required argument. Please choose 'all' or 'session'."
                     })
-
+            
             else:
                 tool_output["content"] = json.dumps({"error": f"Unknown tool: {function_name}"})
 

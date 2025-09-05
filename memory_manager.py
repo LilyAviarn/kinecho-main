@@ -256,37 +256,63 @@ def get_conversation_history_for_channel(channel_id: str, limit: int = 10) -> Li
     # Return the last 'limit' messages (most recent)
     return history[-limit:]
 
-def initialize_kinecho_start_time():
+async def initialize_kinecho_start_time():
     """
     Initializes Kinecho's overall start time in memory if it doesn't exist.
-    This provides a persistent 'birth' time for Kinecho.
+    Also initializes Kinecho's current session's start time, regardless if it already exists;
+    This will be used to calculate uptime.
     """
     _mark_memory_dirty()
     memory = load_memory()
     if "kinecho_meta" not in memory:
         memory["kinecho_meta"] = {}
 
-    if "start_time" not in memory["kinecho_meta"]:
-        memory["kinecho_meta"]["start_time"] = time.time() # Store as Unix timestamp
-        save_memory(memory)
-        print(f"Kinecho Time: Initialized Kinecho's start time to {memory['kinecho_meta']['start_time']}.")
-    else:
-        print(f"Kinecho Time: Kinecho's start time already set to {memory['kinecho_meta']['start_time']}.")
+    if "kinecho_start_time" not in memory["kinecho_meta"]:
+        memory["kinecho_meta"]["kinecho_start_time"] = time.time() # Store as Unix timestamp
+        await save_memory(memory)
+        print(f"Kinecho Time: Initialized Kinecho's start time to {memory['kinecho_meta']['kinecho_start_time']}.")
+    
+    memory["kinecho_meta"]["session_start_time"] = time.time()
+    await save_memory(memory)
+    print(f"Kinecho Time: Initialized session start time to {memory['kinecho_meta']['session_start_time']}.")
 
 def get_kinecho_uptime() -> Dict[str, Any]:
     """
-    Calculates and returns Kinecho's total uptime since its first initialization.
+    Returns Kinecho's total uptime since its first initialization.
     Returns:
         A dictionary with uptime in various formats (seconds, and human-readable string).
     """
     memory = load_memory()
-    start_time = memory.get("kinecho_meta", {}).get("start_time")
+    kinecho_start_time = memory.get("kinecho_meta", {}).get("kinecho_start_time")
 
-    if start_time is None:
+    if kinecho_start_time is None:
         return {"error": "Kinecho start time not initialized. Please call initialize_kinecho_start_time first."}
 
+    start_datetime_utc = datetime.datetime.fromtimestamp(kinecho_start_time, tz=datetime.timezone.utc)
+
+    # Format into a human-readable string (convert from Unix)
+    human_readable_time = start_datetime_utc.strftime("%A, %B %d, %Y at %I:%M:%S %p UTC")
+
+    return {
+        "human_readable_uptime": f"Kinecho's first initialization was {human_readable_time}.",
+        "start_timestamp": kinecho_start_time,
+        "current_timestamp": time.time()
+    }
+
+def get_session_uptime() -> Dict[str, Any]:
+    """
+    Calculates and returns Kinecho's current session's uptime.
+    Returns:
+        A dictionary with uptime in various formats (seconds, and human-readable string).
+    """
+    memory = load_memory()
+    session_start_time = memory.get("kinecho_meta", {}).get("session_start_time")
+
+    if session_start_time is None:
+        return {"error": "Session start time not initialized. Please call initialize_kinecho_start_time first."}
+
     current_time = time.time()
-    uptime_seconds = current_time - start_time
+    uptime_seconds = current_time - session_start_time
 
     days, remainder = divmod(uptime_seconds, 86400)
     hours, remainder = divmod(remainder, 3600)
@@ -305,11 +331,11 @@ def get_kinecho_uptime() -> Dict[str, Any]:
     if seconds > 0 or (not parts and uptime_seconds < 60):
         parts.append(f"{int(seconds)} second{'s' if seconds != 1 else ''}")
 
-    human_readable_uptime = ", ".join(parts) if parts else "just a moment"
+    human_readable_uptime = ", ".join(parts) if parts else "Just a moment..."
 
     return {
         "uptime_seconds": uptime_seconds,
-        "human_readable_uptime": f"Kinecho has been running for {human_readable_uptime}.",
-        "start_timestamp": start_time,
+        "human_readable_uptime": f"Kinecho has been 'awake' for {human_readable_uptime}.",
+        "start_timestamp": session_start_time,
         "current_timestamp": current_time
     }

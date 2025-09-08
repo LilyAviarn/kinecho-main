@@ -262,19 +262,21 @@ async def initialize_kinecho_start_time():
     Also initializes Kinecho's current session's start time, regardless if it already exists;
     This will be used to calculate uptime.
     """
-    _mark_memory_dirty()
-    memory = load_memory()
-    if "kinecho_meta" not in memory:
-        memory["kinecho_meta"] = {}
+    global _memory_dirty
+    async with _memory_lock:
+        memory = load_memory()
+        if "kinecho_meta" not in memory:
+            memory["kinecho_meta"] = {}
+        if "kinecho_start_time" not in memory["kinecho_meta"]:
+            memory["kinecho_meta"]["kinecho_start_time"] = time.time() # Store as Unix timestamp
+            print(f"Kinecho Time: Initialized Kinecho's start time to {memory['kinecho_meta']['kinecho_start_time']}.")
+            _memory_dirty = True
 
-    if "kinecho_start_time" not in memory["kinecho_meta"]:
-        memory["kinecho_meta"]["kinecho_start_time"] = time.time() # Store as Unix timestamp
-        await save_memory(memory)
-        print(f"Kinecho Time: Initialized Kinecho's start time to {memory['kinecho_meta']['kinecho_start_time']}.")
-    
-    memory["kinecho_meta"]["session_start_time"] = time.time()
-    await save_memory(memory)
-    print(f"Kinecho Time: Initialized session start time to {memory['kinecho_meta']['session_start_time']}.")
+        memory["kinecho_meta"]["session_start_time"] = time.time()
+        print(f"Kinecho Time: Initialized session start time to {memory['kinecho_meta']['session_start_time']}.")
+        _memory_dirty = True
+
+    return memory
 
 def get_kinecho_uptime() -> Dict[str, Any]:
     """

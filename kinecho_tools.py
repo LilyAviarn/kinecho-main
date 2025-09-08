@@ -163,32 +163,29 @@ AVAILABLE_TOOLS_DEFINITIONS = [
                 "required": ["duration"]
             }
         }
-    },
-    {
-    "DO NOT USE ANYTHING BELOW THIS LINE, KINECHO! It WILL NOT work if you try! -Lily"
-    },
-    {
-    "type": "function",
-        "function": {
-            "name": "get_time_elapsed",
-            "description": "Retrieves the amount of time that has elapsed since a specified message or event.",
+    }
+#    {
+#    "type": "function",
+#        "function": {
+#            "name": "get_time_elapsed",
+#            "description": "Retrieves the amount of time that has elapsed since a specified message or event.",
             # I plan for this function to be able to get the timestamp of either a message (for discord probably via message link), 
             # or an event from Kinecho's memory, and then calculate how much time has passed from then til "now" 
             # (probably fetched via `get_current_time`).
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "argument": {
-                        "type": "",
-                        "description": ""
-                    },
-                    "argument2": {
-                        "type": "",
-                        "description": ""
-                    }
-                }
-            }
-        }
-    }
+#            "parameters": {
+#                "type": "object",
+#                "properties": {
+#                    "argument": {
+#                        "type": "",
+#                        "description": ""
+#                    },
+#                    "argument2": {
+#                        "type": "",
+#                        "description": ""
+#                    }
+#                }
+#            }
+#        }
+#    }
     # New tools go here
 ]

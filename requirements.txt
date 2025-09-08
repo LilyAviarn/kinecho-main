@@ -1,0 +1,10 @@
+asyncio>=3.4.3,<4.0.0
+configparser>=7.2.0,<8.0.0
+discord-py>=2.5.2,<3.0.0
+gitpython>=3.1.44,<4.0.0
+numpy>=2.2.6,<3.0.0
+openai>=1.82.0,<2.0.0
+python-dotenv>=1.1.0,<2.0.0
+pyttsx3>=2.98,<3.0
+speechrecognition>=3.14.3,<4.0.0
+pytz>=2025.2,<2026.0

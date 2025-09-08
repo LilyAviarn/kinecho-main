@@ -248,27 +248,32 @@ async def get_chat_response(
             elif function_name == "get_kinecho_uptime": # Now picks between All Uptime or Session Uptime.
                 scope_arg = function_args.get("scope")
 
+                tool_result = {"error": "Scope of uptime is a required argument. Please choose 'all' or 'session'."}
+
                 if scope_arg:
                     if scope_arg == "all":
                         tool_result = memory_manager.get_kinecho_uptime()
-                        tool_output["content"] = json.dumps({
-                            "response_for_user": tool_result["human_readable_uptime"],
-                            "raw_uptime_data": tool_result
-                        })
                     elif scope_arg == "session":
                         tool_result = memory_manager.get_session_uptime()
-                        tool_output["content"] = json.dumps({
-                            "response_for_user": tool_result["human_readable_uptime"],
-                            "raw_uptime_data": tool_result
-                        })
                     else:
-                        tool_output["content"] = json.dumps({
-                            "error": "Invalid scope provided. Please choose 'all' or 'session'."
-                        })
+                        tool_result = {"error": "Invalid scope provided. Please choose 'all' or 'session'."}
+                if "error" in tool_result:
+                    tool_output["content"] = json.dumps(tool_result)
                 else:
                     tool_output["content"] = json.dumps({
-                        "error": "Scope of uptime is a required argument. Please choose 'all' or 'session'."
+                        "response_for_user": tool_result["human_readable_uptime"],
+                        "raw_uptime_data": tool_result
                     })
+
+#            elif function_name == "set_timer":
+#                duration_arg = function_args.get("duration")
+#                description_arg = function_args.get("description")
+#
+#                if duration_arg:
+#                    timer.start(duration)
+#                    output 1 # at beginning of timer
+#                    await timer.end
+#                    output 2 = append.description_arg #at end of timer
             
             else:
                 tool_output["content"] = json.dumps({"error": f"Unknown tool: {function_name}"})

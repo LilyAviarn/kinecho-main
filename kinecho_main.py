@@ -34,10 +34,7 @@ async def main():
     global global_discord_interface, global_console_interface, global_kinecho_memory
 
     print("Kinecho Main: Starting Kinecho Commander...")
-
-    global_kinecho_memory = memory_manager.load_memory()
-    memory_manager.initialize_kinecho_start_time()
-    await memory_manager.save_memory(memory_manager.load_memory(), force=True)
+    global_kinecho_memory = await memory_manager.initialize_kinecho_start_time()
 
     interface_instances: Dict[str, Any] = {}
 

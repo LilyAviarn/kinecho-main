@@ -1,3 +1,2 @@
-- ERROR: Tool outputs are not sent to LLM in string format
-- FEATURE: Add more tools for time tracking and planning
-- FEATURE: Add uptime/downtime stamps
+- FEATURE: Add countdown, stopwatch, and elapsed-time tools (and more) for timekeeping
+- FEATURE: Add downtime stamps, program uptime and downtime stamps to be written to a .log or .json
